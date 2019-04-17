@@ -2,9 +2,10 @@ import numpy as np
 import cv2
 #load clip
 vid = cv2.VideoCapture('Apex.mp4')
+prev = cv2.imread('thumb0043.png')
 
 #initalize empty array for previous frame
-prev = numpy.empty()
+#prev = np.empty(0)
 
 #loop through video frames
 while(vid.isOpened()):
