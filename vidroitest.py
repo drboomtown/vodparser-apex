@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import ffmpy
+import time
 
 vid = cv2.VideoCapture('Apex.mp4')
 #initalize empty np array
@@ -64,7 +65,7 @@ duration = end - start
 ff = ffmpy.FFmpeg(
                     inputs={'Apex.mp4': f'-ss "{start}"'},
                     # outputs={'test1.mp4': f'-vf "trim={start}:{duration}" -af "atrim={start}:{duration}" -c "copy"'}
-                    outputs={'test1.mp4': f'-to "{duration}" -c "copy"'}
+                    outputs={f'test{time.strftime("%Y%m%d-%H%M%S")}.mp4': f'-to "{duration}" -c "copy" -avoid_negative_ts "make_zero"'}
 )
 ff.run()
 
