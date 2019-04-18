@@ -2,16 +2,18 @@ import numpy as np
 import cv2
 #load clip
 vid = cv2.VideoCapture('Apex.mp4')
-prev = cv2.imread('thumb0043.png')
 
 #initalize empty array for previous frame
-#prev = np.empty(0)
+prev = np.array([])
 
 #loop through video frames
 while(vid.isOpened()):
 
 #read frame from video
     ret, frame = vid.read()
+
+    if prev.size == 0:
+        prev = frame
     
     #if frame is present
     if ret:
@@ -25,7 +27,7 @@ while(vid.isOpened()):
         #overwrite previous frame with current frame
         prev = frame
         
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(0) & 0xFF == ord('q'):
             break
     else:
         break

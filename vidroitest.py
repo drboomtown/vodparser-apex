@@ -6,7 +6,7 @@ import time
 vid = cv2.VideoCapture('Apex.mp4')
 #initalize empty np array
 prev = np.array([])
-frame_c = 0
+frame_total = 0
 detection = 0
 list_detection = []
 
@@ -18,7 +18,7 @@ while(vid.isOpened()):
 
     #if frame is present
     if ret:
-        frame_c += 1
+        frame_total += 1
         #convert to grey, narrow ROI, threshhold pixels
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         roi = gray[972:1000, 1732:1778]
@@ -37,23 +37,23 @@ while(vid.isOpened()):
         if diff_percent > 1:
             print(diff_percent)
             detection +=1
-            list_detection.append(frame_c)
+            list_detection.append(frame_total)
 
 
-        cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
-        cv2.imshow('frame', frame)
-        cv2.imshow('diff', diff)
-        cv2.imshow('thresh', thresh)
-        cv2.imshow('prev', prev)
+        # cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
+        # cv2.imshow('frame', frame)
+        # cv2.imshow('diff', diff)
+        # cv2.imshow('thresh', thresh)
+        # cv2.imshow('prev', prev)
 
         #update prev frame variable
         prev = thresh
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
     else:
         break
-print(frame_c)
+print(frame_total)
 print(detection)
 print(list_detection)
 
