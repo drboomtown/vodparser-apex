@@ -1,6 +1,6 @@
 from subprocess import run, PIPE
 import cv2
-
+from collections import defaultdict
 
 
 def get_meta_cv(vid):
@@ -32,6 +32,26 @@ def get_meta(filename):
     meta[2] = eval(meta[2])
 
     return meta
+    
+def get_frame_data(filename):
+    """ Extract Meta info using ffprobe """
+    frame_data = defaultdict(list)
+    cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_frames', '-show_entries',
+               'frame=best_effort_timestamp,coded_picture_number', '-of', 'csv=p=0', filename], stderr=PIPE, stdout=PIPE)
+    if cmd.returncode != 0:
+        stdout = cmd.stdout.decode('utf-8')
+        stderr = cmd.stderr.decode('utf-8')
+        raise ChildProcessError(
+            f'ffprobe exited with error code {cmd.returncode}\nstdout:\n{stdout}\n\nstderror:\n{stderr}'
+        )
+    output = cmd.stdout.decode('utf-8')
+    frame_list = [x.strip() for x in output.split(',')]
+    
+    while len(frame_list) > 1:
+        frame_data[frame_list.pop(1)] = frame_list.pop(0)
+
+    
+    return frame_data
 
 
 # '-vcodec', 'h264', '-acodec', 'aac',
@@ -52,8 +72,8 @@ def cut_clip_ms(cut_list, buffer, filename, meta, frame_skip):
     """Cut as many clips as in given list, also passes output names for merge later"""
     merge_list = []
     for frames in cut_list:
-        start = round(frames[0] / 1000)
-        end = round(frames[-1] / 1000)
+        start = round(frames[0] / 1000 + 3)
+        end = round(frames[-1] / 1000 + 6)
         # start = round((frames[0] * frame_skip) / meta[2])
         # end = round((frames[-1] * frame_skip) / meta[2])
         duration = round(end - start)

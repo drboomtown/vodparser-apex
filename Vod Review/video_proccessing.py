@@ -3,7 +3,6 @@ import numpy as np
 import imutils
 import cv2
 
-
 def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     """ Reads ammo counter from video frame by template matching against a reference image """
     ammo_count = ""
@@ -31,10 +30,10 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     # 720p
     # 642.024 is 89.17% 666.684 is 92.595%
     # 1154.688 is 90.21% 1185.28 is 92.6%
-    elif int(meta[1]) == 720:
+    elif meta[1] == 720:
         frame = frame[642:667, 1154:1186]
     else:
-        frame = frame[(int(meta[1]) * 0.8917):(int(meta[1]) * 0.92595), (int(meta[0]) * 0.9021):(int(meta[0]) * 0.926)]
+        frame = frame[int(meta[1] * 0.8917):int(meta[1] * 0.92595), int(meta[0] * 0.9021):int(meta[0] * 0.926)]
 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame = cv2.threshold(frame, 200, 255, cv2.THRESH_BINARY)[1]
@@ -71,7 +70,7 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
             return ammo_count
     if debug:
         print(ammo)
-
+    
     ammo_count = "".join(ammo)
     # print(ammo_count)
 
@@ -83,13 +82,13 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
 
     return ammo_count
 
-
+    
 def health_coord(ret, frame, health_bar_coord, meta):
     """Finds the health bar and returns its coordinates """
     if ret:
         if health_bar_coord is None:
             # roi = frame[995:1029, 175:417]
-            roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528), int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+            roi = frame[int(meta[1] * 0.9213): int(meta[1] * 0.9528), int(meta[0] * 0.091): int(meta[0] * 0.2172)]
             roi = cv2.resize(roi, (242, 34))
             roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
@@ -117,31 +116,31 @@ def health_coord(ret, frame, health_bar_coord, meta):
                     health_bar_coord = None
     return health_bar_coord
 
-
+    
 def myround(x, base=5):
-    return base * round(x / base)
+    return base * round(x/base)
 
-
+    
 def get_health(ret, frame, health_bar_coord, ammo_count, meta):
     """ splits health and shield, finds what level they are rounded to the nearest 5 and returns that"""
     if ret:
         # roi = frame[995:1029, 175:417]
-        roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528), int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+        roi = frame[int(meta[1] * 0.9213): int(meta[1] * 0.9528), int(meta[0] * 0.091): int(meta[0] * 0.2172)]
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
         blue, green, red = cv2.split(roi)
-        roi = np.mean(np.array([red, blue, green]), axis=0)
+        roi = np.mean( np.array([ red, blue, green ]), axis=0)
         roi = cv2.threshold(roi, 135, 255, cv2.THRESH_BINARY)[1]
         # cv2.imshow('roi', roi)
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
-                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
+                        health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
 
-        roi_s = roi[health_bar_coord[1] - 11:health_bar_coord[1] + health_bar_coord[3] - 16,
-                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
-
+        roi_s = roi[health_bar_coord[1]-11:health_bar_coord[1] + health_bar_coord[3]-16,
+                        health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]-6]
+                        
         # cv2.imshow('roi_h', roi_h)
         # cv2.imshow('roi_s', roi_s)
-
+        
         # print(cv2.mean(roi_h))
         # print(cv2.mean(roi_s))
 
@@ -155,8 +154,8 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
             shield = 0
 
         return str(health + shield)
-
-
+        
+        
 def health_det(health_list):
     """ Groups occurances of reduction in ammo level provided by ammo_counter """
     prev = None
@@ -167,7 +166,7 @@ def health_det(health_list):
         if prev == None:
             prev = count
         if 6 <= int(prev) - int(count) <= 100:
-            # if int(prev) - int(count) >= 1 and int(prev) - int(count) < 2:
+        # if int(prev) - int(count) >= 1 and int(prev) - int(count) < 2:
             det_list.append(1)
             prev = count
         else:
@@ -181,24 +180,24 @@ def reduction_det_ms(ammo_dict):
     prev_a = None
     prev_h = None
     det_list = []
-
+    
     for ms, count in ammo_dict.items():
         if prev_a == None:
-            prev_a = count[0]
-            prev_h = count[1]
-        if int(prev_a) - int(count[0]) == 1 or 5 < int(prev_h) - int(count[1]) < 100:
+            prev_a = count[1]
+            prev_h = count[2]
+        if int(prev_a) - int(count[1]) == 1 or 5 < int(prev_h) - int(count[2]) < 120:
             det_list.append(ms)
-            prev_a = count[0]
-            prev_h = count[1]
+            prev_a = count[1]
+            prev_h = count[2]
         else:
-            prev_a = count[0]
-            prev_h = count[1]
+            prev_a = count[1]
+            prev_h = count[2]
 
     return det_list
 
 
 def group_det_ms(final_det, buffer, frame_skip, debug):
-    """ Groups occurrences of reduction in ammo level provided by ammo_counter """
+    """ Groups occurances of reduction in ammo level provided by ammo_counter """
     prev_f = 0
     cut = []
     cut_list = []
