@@ -109,7 +109,7 @@ def health_coord(ret, frame, health_bar_coord, meta):
                 # print(float(w) / h)
 
                 cv2.drawContours(thresh, c, -1, (0, 255, 0), 2)
-                # cv2.imshow('frame', thresh)
+                cv2.imshow('frame', thresh)
 
                 if 2300 < area < 3000 and 15 < aspect_ratio < 25:
                     health_bar_coord = [x, y, w, h]
@@ -130,8 +130,11 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
         blue, green, red = cv2.split(roi)
-        roi = np.mean(np.array([red, blue, green]), axis=0)
-        roi = cv2.threshold(roi, 135, 255, cv2.THRESH_BINARY)[1]
+        if cv2.mean(red)[0] > cv2.mean(blue)[0]:
+            roi = np.mean(np.array([red]), axis=0)
+        else:
+            roi = np.mean(np.array([blue]), axis=0)
+        roi = cv2.threshold(roi, 170, 255, cv2.THRESH_BINARY)[1]
         # cv2.imshow('roi', roi)
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
@@ -139,8 +142,8 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
         roi_s = roi[health_bar_coord[1] - 11:health_bar_coord[1] + health_bar_coord[3] - 16,
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
 
-        # cv2.imshow('roi_h', roi_h)
-        # cv2.imshow('roi_s', roi_s)
+        cv2.imshow('roi_h', roi_h)
+        cv2.imshow('roi_s', roi_s)
 
         # print(cv2.mean(roi_h))
         # print(cv2.mean(roi_s))
@@ -153,6 +156,8 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
         else:
             health = 0
             shield = 0
+
+        print(health + shield)
 
         return str(health + shield)
 
@@ -186,7 +191,7 @@ def reduction_det_ms(ammo_dict):
         if prev_a == None:
             prev_a = count[1]
             prev_h = count[2]
-        if int(prev_a) - int(count[1]) == 1 or 5 < int(prev_h) - int(count[2]) < 120:
+        if int(prev_a) - int(count[1]) == 1 or 8 < int(prev_h) - int(count[2]) < 120 and int(count[2]) != 0:
             det_list.append(count[0])
             prev_a = count[1]
             prev_h = count[2]

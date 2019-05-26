@@ -2,6 +2,7 @@ from imutils.video import FPS
 import cv2
 from configparser import ConfigParser
 from collections import defaultdict
+import time
 
 from video_edit import get_meta_cv, get_frame_data, cut_clip_ms, merge_clips, get_meta
 from video_proccessing import ammo_count, health_coord, get_health, reduction_det_ms, group_det_ms
@@ -23,28 +24,44 @@ health_list = []
 frame_total = []
 frame_dict = defaultdict(list)
 frame_count = 0
+frame_data = defaultdict(list)
 
 meta = get_meta(config.get('DEFAULT', 'filename'))
-print('start')
-frame_data = get_frame_data(config.get('DEFAULT', 'filename'))
-print('done')
+# print('start')
+# time_start = time.time()
+# frame_data = get_frame_data(config.get('DEFAULT', 'filename'))
+# time_end = time.time()
+# dur = time_end - time_start
+# print('done' + str(dur))
+
+
 
 while vid.isOpened():
     cv2.waitKey(1)
 
-    # grabbed = vid.grab()
-    # if grabbed:
-    #     frame_no = vid.get(cv2.CAP_PROP_POS_FRAMES)
-    #     if int(frame_no) % config.getint('DEFAULT', 'frame_skip') == 0:
-    #         ret, frame = vid.retrieve()
-    #     else:
-    #         continue
-    # else:
-    #     break
+    grabbed = vid.grab()
+    if grabbed:
+        frame_no = vid.get(cv2.CAP_PROP_POS_FRAMES)
+        if int(frame_no) % config.getint('DEFAULT', 'frame_skip') == 0:
+            ret, frame = vid.retrieve()
+        else:
+            if frame_count == 0:
+                ammo = 0
+                health = 0
+                frame_data[frame_count].append(ammo)
+                frame_data[frame_count].append(health)
+            else:
+                prev = frame_data.get(frame_count - 1)
+                frame_data[frame_count].append(prev[-2])
+                frame_data[frame_count].append(prev[-1])
+            continue
+    else:
+        break
 
-    ret, frame = vid.read()
+    # ret, frame = vid.read()
     if ret:
-        # cv2.imshow('frame', frame)
+        cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
+        cv2.imshow('Video', frame)
 
         ms = vid.get(cv2.CAP_PROP_POS_MSEC)
 
@@ -58,6 +75,7 @@ while vid.isOpened():
         else:
             health = get_health(ret, frame, health_bar_coord, ammo, meta)
 
+        # health = 0
         frame_data[frame_count].append(ammo)
         frame_data[frame_count].append(health)
 
@@ -73,7 +91,13 @@ vid.release()
 cv2.destroyAllWindows()
 
 print(meta)
-print(frame_data)
+
+for i,item in enumerate(frame_data.values()):
+    if (i+1)%10000 == 0:
+        print(item)
+    else:
+        print(f'{i} {item}',end=' ')
+# print(frame_data)
 
 dup_frame = int(meta[4]) - len(frame_data)
 print(dup_frame)
@@ -82,10 +106,10 @@ final_det = reduction_det_ms(frame_data)
 print(final_det)
 cut_list = group_det_ms(final_det, config.getint('DEFAULT', 'buffer'), config.getint('DEFAULT', 'frame_skip'), debug)
 print(cut_list)
-merge_list = cut_clip_ms(cut_list, config.getint('DEFAULT', 'buffer'), config.get('DEFAULT', 'filename'), meta,
-                         config.getint('DEFAULT', 'frame_skip'))
-print(merge_list)
-merge_clips(config.get('DEFAULT', 'filename'), merge_list)
+# merge_list = cut_clip_ms(cut_list, config.getint('DEFAULT', 'buffer'), config.get('DEFAULT', 'filename'), meta,
+#                          config.getint('DEFAULT', 'frame_skip'))
+# print(merge_list)
+# merge_clips(config.get('DEFAULT', 'filename'), merge_list)
 
 fps.stop()
 print(f'[INFO] clip duration: {meta[3]}')
