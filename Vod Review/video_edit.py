@@ -36,9 +36,8 @@ def get_meta(filename):
     return meta
 
 
-def get_frame_data(filename):
+def get_frame_data(filename, frame_data):
     """ Extract Meta info using ffprobe """
-    frame_data = defaultdict(list)
     cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_frames', '-show_entries',
                'frame=best_effort_timestamp_time,coded_picture_number', '-of', 'csv=p=0', filename], stderr=PIPE,
               stdout=PIPE)
@@ -56,9 +55,7 @@ def get_frame_data(filename):
     while len(frame_list) > 2:
         msec = frame_list.pop(0)
         frame = int(frame_list.pop(0))
-        frame_data[frame] = [msec]
-
-    return frame_data
+        frame_data[frame].insert(0, msec)
 
 
 # '-vcodec', 'h264', '-acodec', 'aac',
