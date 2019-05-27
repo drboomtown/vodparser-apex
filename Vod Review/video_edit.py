@@ -38,9 +38,11 @@ def get_meta(filename):
 
 def get_frame_data(filename, frame_data):
     """ Extract Meta info using ffprobe """
+    print('start probe')
     cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_frames', '-show_entries',
                'frame=best_effort_timestamp_time,coded_picture_number', '-of', 'csv=p=0', filename], stderr=PIPE,
               stdout=PIPE)
+    print('done probe')
     if cmd.returncode != 0:
         stdout = cmd.stdout.decode('utf-8')
         stderr = cmd.stderr.decode('utf-8')
