@@ -3,6 +3,7 @@ import cv2
 from configparser import ConfigParser
 from collections import defaultdict
 import time
+import threading
 
 from video_edit import get_meta_cv, get_frame_data, cut_clip_ms, merge_clips, get_meta
 from video_proccessing import ammo_count, health_coord, get_health, reduction_det_ms, group_det_ms
@@ -27,65 +28,77 @@ frame_count = 0
 frame_data = defaultdict(list)
 
 meta = get_meta(config.get('DEFAULT', 'filename'))
+
+
+def cv_proccessing(frame_skip, meta, debug, frame_data): 
+    while vid.isOpened():
+        cv2.waitKey(1)
+
+        grabbed = vid.grab()
+        if grabbed:
+            frame_no = vid.get(cv2.CAP_PROP_POS_FRAMES)
+            if int(frame_no) % frame_skip == 0:
+                ret, frame = vid.retrieve()
+            else:
+                if frame_count == 0:
+                    ammo = 0
+                    health = 0
+                    frame_data[frame_count].append(ammo)
+                    frame_data[frame_count].append(health)
+                else:
+                    prev = frame_data.get(frame_count - 1)
+                    frame_data[frame_count].append(prev[-2])
+                    frame_data[frame_count].append(prev[-1])
+                continue
+        else:
+            break
+
+        # ret, frame = vid.read()
+        if ret:
+            cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
+            cv2.imshow('Video', frame)
+
+            ms = vid.get(cv2.CAP_PROP_POS_MSEC)
+
+            ammo = ammo_count(ref, ret, frame, meta, frame_skip, debug)
+            # ammo_list.append(ammo)
+
+            if health_bar_coord == None:
+                health_bar_coord = health_coord(ret, frame, health_bar_coord, meta)
+                if health_bar_coord == None:
+                    health = 0
+            else:
+                health = get_health(ret, frame, health_bar_coord, ammo, meta)
+
+            # health = 0
+            frame_data[frame_count].append(ammo)
+            frame_data[frame_count].append(health)
+
+            # frame_dict[ms] = [ammo, health]
+
+            fps.update()
+            frame_count += 1
+
+        else:
+            break
+            
+thread1 = threading.Thread(target=get_frame_data(), args=(config.get('DEFAULT', 'filename'), frame_data))
+thread2 = threading.Thread(target=cv_proccessing(), args=(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data))
+
+thread1.start()
+thread2.start()
+
 # print('start')
 # time_start = time.time()
-# frame_data = get_frame_data(config.get('DEFAULT', 'filename'))
+# get_frame_data(config.get('DEFAULT', 'filename'))
 # time_end = time.time()
 # dur = time_end - time_start
 # print('done' + str(dur))
+            
+# cv_proccessing(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data)
 
-
-
-while vid.isOpened():
-    cv2.waitKey(1)
-
-    grabbed = vid.grab()
-    if grabbed:
-        frame_no = vid.get(cv2.CAP_PROP_POS_FRAMES)
-        if int(frame_no) % config.getint('DEFAULT', 'frame_skip') == 0:
-            ret, frame = vid.retrieve()
-        else:
-            if frame_count == 0:
-                ammo = 0
-                health = 0
-                frame_data[frame_count].append(ammo)
-                frame_data[frame_count].append(health)
-            else:
-                prev = frame_data.get(frame_count - 1)
-                frame_data[frame_count].append(prev[-2])
-                frame_data[frame_count].append(prev[-1])
-            continue
-    else:
-        break
-
-    # ret, frame = vid.read()
-    if ret:
-        cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
-        cv2.imshow('Video', frame)
-
-        ms = vid.get(cv2.CAP_PROP_POS_MSEC)
-
-        ammo = ammo_count(ref, ret, frame, meta, config.getint('DEFAULT', 'frame_skip'), debug)
-        # ammo_list.append(ammo)
-
-        if health_bar_coord == None:
-            health_bar_coord = health_coord(ret, frame, health_bar_coord, meta)
-            if health_bar_coord == None:
-                health = 0
-        else:
-            health = get_health(ret, frame, health_bar_coord, ammo, meta)
-
-        # health = 0
-        frame_data[frame_count].append(ammo)
-        frame_data[frame_count].append(health)
-
-        # frame_dict[ms] = [ammo, health]
-
-        fps.update()
-        frame_count += 1
-
-    else:
-        break
+thread1.join()
+thread2.join()
 
 vid.release()
 cv2.destroyAllWindows()
