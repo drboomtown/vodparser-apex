@@ -30,7 +30,7 @@ frame_data = defaultdict(list)
 meta = get_meta(config.get('DEFAULT', 'filename'))
 
 
-def cv_proccessing(frame_skip, meta, debug, frame_data): 
+def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord):
     while vid.isOpened():
         cv2.waitKey(1)
 
@@ -45,10 +45,12 @@ def cv_proccessing(frame_skip, meta, debug, frame_data):
                     health = 0
                     frame_data[frame_count].append(ammo)
                     frame_data[frame_count].append(health)
+                    frame_count += 1
                 else:
                     prev = frame_data.get(frame_count - 1)
                     frame_data[frame_count].append(prev[-2])
                     frame_data[frame_count].append(prev[-1])
+                    frame_count += 1
                 continue
         else:
             break
@@ -81,12 +83,15 @@ def cv_proccessing(frame_skip, meta, debug, frame_data):
 
         else:
             break
-            
-thread1 = threading.Thread(target=get_frame_data(), args=(config.get('DEFAULT', 'filename'), frame_data))
-thread2 = threading.Thread(target=cv_proccessing(), args=(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data))
 
+print('start')
+thread1 = threading.Thread(target=get_frame_data, args=(config.get('DEFAULT', 'filename'), frame_data))
+thread2 = threading.Thread(target=cv_proccessing, args=(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data, frame_count, health_bar_coord))
+print(threading.enumerate())
 thread1.start()
 thread2.start()
+print(threading.enumerate())
+
 
 # print('start')
 # time_start = time.time()
@@ -94,22 +99,24 @@ thread2.start()
 # time_end = time.time()
 # dur = time_end - time_start
 # print('done' + str(dur))
-            
+
 # cv_proccessing(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data)
 
 thread1.join()
 thread2.join()
+print(thread1.isAlive())
+print(thread2.isAlive())
 
 vid.release()
 cv2.destroyAllWindows()
 
 print(meta)
 
-for i,item in enumerate(frame_data.values()):
-    if (i+1)%10000 == 0:
+for i, item in enumerate(frame_data.values()):
+    if (i + 1) % 10000 == 0:
         print(item)
     else:
-        print(f'{i} {item}',end=' ')
+        print(f'{i} {item}', end=' ')
 # print(frame_data)
 
 dup_frame = int(meta[4]) - len(frame_data)
@@ -119,10 +126,10 @@ final_det = reduction_det_ms(frame_data)
 print(final_det)
 cut_list = group_det_ms(final_det, config.getint('DEFAULT', 'buffer'), config.getint('DEFAULT', 'frame_skip'), debug)
 print(cut_list)
-# merge_list = cut_clip_ms(cut_list, config.getint('DEFAULT', 'buffer'), config.get('DEFAULT', 'filename'), meta,
-#                          config.getint('DEFAULT', 'frame_skip'))
-# print(merge_list)
-# merge_clips(config.get('DEFAULT', 'filename'), merge_list)
+merge_list = cut_clip_ms(cut_list, config.getint('DEFAULT', 'buffer'), config.get('DEFAULT', 'filename'), meta,
+                         config.getint('DEFAULT', 'frame_skip'))
+print(merge_list)
+merge_clips(config.get('DEFAULT', 'filename'), merge_list)
 
 fps.stop()
 print(f'[INFO] clip duration: {meta[3]}')
