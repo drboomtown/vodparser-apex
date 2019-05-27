@@ -134,12 +134,12 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
             roi = np.mean(np.array([red]), axis=0)
         else:
             roi = np.mean(np.array([blue]), axis=0)
-        roi = cv2.threshold(roi, 180, 255, cv2.THRESH_BINARY)[1]
+        roi = cv2.threshold(roi, 170, 255, cv2.THRESH_BINARY)[1]
         # cv2.imshow('roi', roi)
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
 
-        roi_s = roi[health_bar_coord[1] - 11:health_bar_coord[1] + health_bar_coord[3] - 16,
+        roi_s = roi[health_bar_coord[1] - 10:health_bar_coord[1] + health_bar_coord[3] - 16,
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
 
         cv2.imshow('roi_h', roi_h)
@@ -157,7 +157,7 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
             health = 0
             shield = 0
 
-        print(health + shield)
+        # print(health + shield)
 
         return str(health + shield)
 
