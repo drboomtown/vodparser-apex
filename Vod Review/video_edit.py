@@ -37,7 +37,7 @@ def get_meta(filename):
 
 
 def get_frame_data(filename, frame_data):
-    """ Extract Meta info using ffprobe """
+    """ Extract time code for every frame using ffprobe """
     print('start probe')
     cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_frames', '-show_entries',
                'frame=best_effort_timestamp_time,coded_picture_number', '-of', 'csv=p=0', filename], stderr=PIPE,
@@ -63,29 +63,15 @@ def get_frame_data(filename, frame_data):
 # '-vcodec', 'h264', '-acodec', 'aac',
 
 
-def merge_clips(filename, merge_list):
-    """concat clips previously cut by cut_clip if desired"""
-    extension = filename.split('.')
-    output = f'{".".join(extension[0:-2])}_highlights.{extension[-1]}'
-    temp_merge = 'temp_merge.txt'
-    f = open(temp_merge, 'w')
-    for name in merge_list:
-        f.write(f"file '{name}'\n")
-    f.close()
-    run(['ffmpeg', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', temp_merge, '-c', 'copy', '-y', output])
-
-
 def cut_clip_ms(cut_list, buffer, filename, meta, frame_skip):
     """Cut as many clips as in given list, also passes output names for merge later"""
     merge_list = []
     for frames in cut_list:
-        start = round(frames[0] / 1000 - 3)
-        end = round(frames[-1] / 1000 + 3)
-        # start = round((frames[0] * frame_skip) / meta[2])
-        # end = round((frames[-1] * frame_skip) / meta[2])
+        start = round(frames[0] - 3)
+        end = round(frames[-1] + 3)
         duration = round(end - start)
-
         extension = filename.split('.')
+        
         output = f'{".".join(extension[0:-2])}_{start}_{end}.{extension[-1]}'
 
         run(['ffmpeg', '-v', 'error', '-ss', str(start), '-i', str(filename), '-t', str(duration), '-c', 'copy',
@@ -94,3 +80,18 @@ def cut_clip_ms(cut_list, buffer, filename, meta, frame_skip):
         merge_list.append(output)
 
     return merge_list
+    
+    
+def merge_clips(filename, merge_list):
+    """concat clips previously cut by cut_clip if desired"""
+    extension = filename.split('.')
+    output = f'{".".join(extension[0:-2])}_highlights.{extension[-1]}'
+    temp_merge = 'temp_merge.txt'
+    f = open(temp_merge, 'w')
+    
+    for name in merge_list:
+        f.write(f"file '{name}'\n")
+    f.close()
+    
+    run(['ffmpeg', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', temp_merge, '-c', 'copy', '-y', output])
+    
