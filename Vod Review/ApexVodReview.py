@@ -5,8 +5,8 @@ from collections import defaultdict
 import time
 import threading
 
-from video_edit import get_meta_cv, get_frame_data, cut_clip_ms, merge_clips, get_meta
-from video_proccessing import cv_proccessing, ammo_count, health_coord, get_health, reduction_det_ms, group_det_ms
+from video_edit import get_meta_cv, get_meta, get_frame_data, cut_clip_ms, merge_clips
+from video_proccessing import cv_proccessing, reduction_det_ms, group_det_ms
 
 config = ConfigParser()
 config.read('config.ini')
@@ -63,4 +63,3 @@ if debug is True:
     print(f'[INFO] clip duration: {meta[3]}')
     print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
     print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-    
