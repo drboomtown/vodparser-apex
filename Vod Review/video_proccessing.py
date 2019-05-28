@@ -4,6 +4,53 @@ import imutils
 import cv2
 
 
+def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord):
+    while vid.isOpened():
+        cv2.waitKey(1)
+
+        grabbed = vid.grab()
+        if grabbed:
+            frame_no = vid.get(cv2.CAP_PROP_POS_FRAMES)
+            if int(frame_no) % frame_skip == 0:
+                ret, frame = vid.retrieve()
+            else:
+                if frame_count == 0:
+                    ammo = 0
+                    health = 0
+                    frame_data[frame_count].append(ammo)
+                    frame_data[frame_count].append(health)
+                    frame_count += 1
+                else:
+                    prev = frame_data.get(frame_count - 1)
+                    frame_data[frame_count].append(prev[-2])
+                    frame_data[frame_count].append(prev[-1])
+                    frame_count += 1
+                continue
+        else:
+            break
+
+        if ret:
+            if debug is True:
+                cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
+                cv2.imshow('Video', frame)
+                fps.update()
+                
+            ammo = ammo_count(ref, ret, frame, meta, frame_skip, debug)
+
+            if health_bar_coord == None:
+                health_bar_coord = health_coord(ret, frame, health_bar_coord, meta)
+                if health_bar_coord == None:
+                    health = 0
+            else:
+                health = get_health(ret, frame, health_bar_coord, ammo, meta)
+
+            frame_data[frame_count].append(ammo)
+            frame_data[frame_count].append(health)
+            frame_count += 1
+
+        else:
+            break
+
 def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     """ Reads ammo counter from video frame by template matching against a reference image """
     ammo_count = ""
@@ -60,7 +107,7 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
             (_, score, _, _) = cv2.minMaxLoc(result)
             scores.append(score)
 
-        if debug:
+        if debug is True:
             print(np.argmax(scores))
             print(np.amax(scores))
 
@@ -69,17 +116,12 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
         else:
             ammo_count = 0
             return ammo_count
-    if debug:
-        print(ammo)
 
     ammo_count = "".join(ammo)
-    # print(ammo_count)
-
-    # if debug:
-    #     cv2.imshow('ref', ref)
-    #     cv2.imshow('frame', frame)
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #         break
+    
+    if debug is True:
+        cv2.imshow('ref_ammo', ref)
+        cv2.imshow('frame_ammo', frame)
 
     return ammo_count
 
@@ -104,9 +146,10 @@ def health_coord(ret, frame, health_bar_coord, meta):
                 x, y, w, h = cv2.boundingRect(c)
                 aspect_ratio = float(w) / h
                 area = cv2.contourArea(c)
-
-                # print(cv2.contourArea(c))
-                # print(float(w) / h)
+                
+                if debug is True:
+                    print(cv2.contourArea(c))
+                    print(float(w) / h)
 
                 cv2.drawContours(thresh, c, -1, (0, 255, 0), 2)
                 cv2.imshow('frame', thresh)
@@ -135,18 +178,16 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
         else:
             roi = np.mean(np.array([blue]), axis=0)
         roi = cv2.threshold(roi, 170, 255, cv2.THRESH_BINARY)[1]
-        # cv2.imshow('roi', roi)
+
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
 
         roi_s = roi[health_bar_coord[1] - 10:health_bar_coord[1] + health_bar_coord[3] - 16,
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
-
-        cv2.imshow('roi_h', roi_h)
-        cv2.imshow('roi_s', roi_s)
-
-        # print(cv2.mean(roi_h))
-        # print(cv2.mean(roi_s))
+        
+        if debug is True:
+            cv2.imshow('roi_h', roi_h)
+            cv2.imshow('roi_s', roi_s)
 
         if type(ammo_count) is str:
             health = cv2.mean(roi_h)[0]
@@ -157,28 +198,7 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
             health = 0
             shield = 0
 
-        # print(health + shield)
-
         return str(health + shield)
-
-
-def health_det(health_list):
-    """ Groups occurances of reduction in ammo level provided by ammo_counter """
-    prev = None
-    det_list = []
-
-    for count in health_list:
-        # frame = i
-        if prev == None:
-            prev = count
-        if 6 <= int(prev) - int(count) <= 100:
-            # if int(prev) - int(count) >= 1 and int(prev) - int(count) < 2:
-            det_list.append(1)
-            prev = count
-        else:
-            det_list.append(0)
-            prev = count
-    return det_list
 
 
 def reduction_det_ms(ammo_dict):
@@ -203,17 +223,16 @@ def reduction_det_ms(ammo_dict):
 
 
 def group_det_ms(final_det, buffer, frame_skip, debug):
-    """ Groups occurances of reduction in ammo level provided by ammo_counter """
+    """ Groups occurances of reduction in ammo level and health level """
     prev_f = 0
     cut = []
     cut_list = []
 
-    det_range = 20000
+    det_range = 20
     for frame in final_det:
 
-        frame = float(frame) * 1000
-
-        if frame - prev_f > det_range / frame_skip:
+        # if frame - prev_f > det_range / frame_skip:
+        if frame - prev_f > det_range:
             cut.append(prev_f)
             if len(cut) >= 3:
                 cut = [cut[0], cut[-1]]
@@ -224,12 +243,14 @@ def group_det_ms(final_det, buffer, frame_skip, debug):
             else:
                 cut = []
                 prev_f = frame
-        elif frame - prev_f <= det_range / frame_skip:
+        # elif frame - prev_f <= det_range / frame_skip:
+        elif frame - prev_f <= det_range:
             cut.append(prev_f)
             prev_f = frame
             if debug == True:
                 print(cut)
-    if frame - prev_f <= det_range / frame_skip:
+    #if frame - prev_f <= det_range / frame_skip:
+    if frame - prev_f <= det_range:
         cut.append(frame)
     print(cut)
     if len(cut) >= 3:
