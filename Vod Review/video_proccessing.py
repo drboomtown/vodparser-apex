@@ -4,7 +4,7 @@ import imutils
 import cv2
 
 
-def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord):
+def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord, vid, ref):
     while vid.isOpened():
         cv2.waitKey(1)
 
@@ -34,22 +34,71 @@ def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_
                 cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
                 cv2.imshow('Video', frame)
                 fps.update()
-                
+
             ammo = ammo_count(ref, ret, frame, meta, frame_skip, debug)
 
             if health_bar_coord == None:
-                health_bar_coord = health_coord(ret, frame, health_bar_coord, meta)
+                health_bar_coord = health_coord(ret, frame, health_bar_coord, meta, debug)
                 if health_bar_coord == None:
                     health = 0
             else:
-                health = get_health(ret, frame, health_bar_coord, ammo, meta)
+                health = get_health(ret, frame, health_bar_coord, ammo, meta, debug)
+
+            kill = kill_marker(ret, frame, debug)
 
             frame_data[frame_count].append(ammo)
             frame_data[frame_count].append(health)
+            frame_data[frame_count].append(kill)
             frame_count += 1
 
         else:
             break
+
+
+def kill_marker(ret, frame, debug):
+    kernel = np.ones((6, 6), np.uint8)
+    roi = frame[490:590, 910:1010]
+    blue, green, red = cv2.split(roi)
+    blue = cv2.bitwise_not(blue)
+    blue = cv2.threshold(blue, 215, 255, cv2.THRESH_BINARY)[1]
+
+    closing = cv2.morphologyEx(blue, cv2.MORPH_CLOSE, kernel)
+
+    killCnt = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    killCnt = imutils.grab_contours(killCnt)
+    if len(killCnt) > 0:
+        killCnt = contours.sort_contours(killCnt, method="left-to-right")[0]
+    else:
+        kill = 0
+        return kill
+    # cv2.drawContours(roi, killCnt, -1, (0,255,0), 1)
+    kill_markers = []
+    for contour in killCnt:
+
+        rect = cv2.minAreaRect(contour)
+        center, w_h, angle = cv2.minAreaRect(contour)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+        cv2.drawContours(roi, [box], 0, (255, 0, 0), 1)
+        # print(f'Contour area  : {cv2.contourArea(contour)}')
+        #print(f'Contour length: {cv2.arcLength(contour, True)}')
+        # if w_h[0] > 0 and w_h[1] > 0:
+        #     print(f'Contour aspect: {float(w_h[0])/w_h[1]}')
+        if 53 < cv2.arcLength(contour, True) < 62:
+            kill_markers.append(contour)
+
+    #print(len(kill_markers))
+    if len(kill_markers) > 1:
+        kill = 1
+    else:
+        kill = 0
+    if debug is True:
+        cv2.imshow('roi_kill', roi)
+        cv2.imshow('blue_kill', blue)
+        cv2.imshow('closing_kill', closing)
+
+    return kill
+
 
 def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     """ Reads ammo counter from video frame by template matching against a reference image """
@@ -81,7 +130,8 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     elif meta[1] == 720:
         frame = frame[642:667, 1154:1186]
     else:
-        frame = frame[int(int(meta[1]) * 0.8917):int(int(meta[1]) * 0.92595), int(int(meta[0]) * 0.9021):int(int(meta[0]) * 0.926)]
+        frame = frame[int(int(meta[1]) * 0.8917):int(int(meta[1]) * 0.92595),
+                int(int(meta[0]) * 0.9021):int(int(meta[0]) * 0.926)]
 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame = cv2.threshold(frame, 200, 255, cv2.THRESH_BINARY)[1]
@@ -118,7 +168,7 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
             return ammo_count
 
     ammo_count = "".join(ammo)
-    
+
     if debug is True:
         cv2.imshow('ref_ammo', ref)
         cv2.imshow('frame_ammo', frame)
@@ -126,12 +176,13 @@ def ammo_count(ref, ret, frame, meta, frame_skip, debug):
     return ammo_count
 
 
-def health_coord(ret, frame, health_bar_coord, meta):
+def health_coord(ret, frame, health_bar_coord, meta, debug):
     """Finds the health bar and returns its coordinates """
     if ret:
         if health_bar_coord is None:
             # roi = frame[995:1029, 175:417]
-            roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528), int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+            roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
+                  int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
             roi = cv2.resize(roi, (242, 34))
             roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
 
@@ -146,13 +197,14 @@ def health_coord(ret, frame, health_bar_coord, meta):
                 x, y, w, h = cv2.boundingRect(c)
                 aspect_ratio = float(w) / h
                 area = cv2.contourArea(c)
-                
+
                 if debug is True:
                     print(cv2.contourArea(c))
                     print(float(w) / h)
 
                 cv2.drawContours(thresh, c, -1, (0, 255, 0), 2)
-                cv2.imshow('frame', thresh)
+                if debug is True:
+                    cv2.imshow('frame', thresh)
 
                 if 2300 < area < 3000 and 15 < aspect_ratio < 25:
                     health_bar_coord = [x, y, w, h]
@@ -165,11 +217,12 @@ def myround(x, base=5):
     return base * round(x / base)
 
 
-def get_health(ret, frame, health_bar_coord, ammo_count, meta):
+def get_health(ret, frame, health_bar_coord, ammo_count, meta, debug):
     """ splits health and shield, finds what level they are rounded to the nearest 5 and returns that"""
     if ret:
         # roi = frame[995:1029, 175:417]
-        roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528), int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+        roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
+              int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
         blue, green, red = cv2.split(roi)
@@ -184,7 +237,7 @@ def get_health(ret, frame, health_bar_coord, ammo_count, meta):
 
         roi_s = roi[health_bar_coord[1] - 10:health_bar_coord[1] + health_bar_coord[3] - 16,
                 health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
-        
+
         if debug is True:
             cv2.imshow('roi_h', roi_h)
             cv2.imshow('roi_s', roi_s)
@@ -205,14 +258,15 @@ def reduction_det_ms(ammo_dict):
     """ returns occurances of reduction in ammo and health """
     prev_a = None
     prev_h = None
+    prev_k = None
     det_list = []
 
     for ms, count in ammo_dict.items():
         if prev_a == None:
             prev_a = count[1]
             prev_h = count[2]
-        if int(prev_a) - int(count[1]) == 1 or 8 < int(prev_h) - int(count[2]) < 120 and int(count[2]) != 0:
-            det_list.append(count[0])
+        if int(prev_a) - int(count[1]) == 1 or 8 < int(prev_h) - int(count[2]) < 120 and int(count[2]) != 0 or int(count[3]) == 1:
+            det_list.append(float(count[0]))
             prev_a = count[1]
             prev_h = count[2]
         else:
@@ -249,7 +303,7 @@ def group_det_ms(final_det, buffer, frame_skip, debug):
             prev_f = frame
             if debug == True:
                 print(cut)
-    #if frame - prev_f <= det_range / frame_skip:
+    # if frame - prev_f <= det_range / frame_skip:
     if frame - prev_f <= det_range:
         cut.append(frame)
     print(cut)

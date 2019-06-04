@@ -26,7 +26,7 @@ if debug is True:
     fps = FPS().start()
 
 thread1 = threading.Thread(target=get_frame_data, args=(config.get('DEFAULT', 'filename'), frame_data))
-thread2 = threading.Thread(target=cv_proccessing, args=(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data, frame_count, health_bar_coord))
+thread2 = threading.Thread(target=cv_proccessing, args=(config.getint('DEFAULT', 'frame_skip'), meta, debug, frame_data, frame_count, health_bar_coord, vid, ref))
 
 thread1.start()
 thread2.start()
