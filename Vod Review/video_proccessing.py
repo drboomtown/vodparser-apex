@@ -345,7 +345,7 @@ def group_det_ms(final_det, debug, det_range):
             if len(cut) >= 3:
                 cut = [cut[0], cut[-1]]
                 cut_list.append(cut)
-                print(cut)
+                # print(cut)
                 cut = []
                 prev_f = frame
             else:
