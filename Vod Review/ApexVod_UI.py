@@ -179,12 +179,12 @@ class ApexGui(QtGui.QWidget, QPlainTextEditLogger):
 
     def selectFileInput(self):
         """ File selection pop up for input """
-        fname = QtGui.QFileDialog.getOpenFileName(self, 'Select file', 'H:\ShadowPlay\Apex Legends')
+        fname = QtGui.QFileDialog.getOpenFileName(self, 'Select file', 'C:\\')
         self.input_edit.setText(fname)
 
     def selectFileOutput(self):
         """ Folder selection pop up for output """
-        fname = QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', 'H:\ShadowPlay\Apex Legends')
+        fname = QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', 'C:\\')
         self.output_edit.setText(fname)
 
     def done(self):
