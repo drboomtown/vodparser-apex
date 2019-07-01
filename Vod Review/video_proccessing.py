@@ -68,6 +68,7 @@ def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_
                 time = int(vid.get(cv2.CAP_PROP_POS_MSEC)) / 1000
                 frame_no = int(vid.get(cv2.CAP_PROP_POS_FRAMES)) - 1
                 frame_data[frame_no].insert(0, time)
+
             frame_data[frame_count].append(ammo)
             frame_data[frame_count].append(health)
             frame_data[frame_count].append(kill)
@@ -161,7 +162,7 @@ def ammo_count(ref, frame, meta, debug):
         frame = frame[642:667, 1154:1186]
     else:
         frame = frame[int(int(meta[1]) * 0.8917):int(int(meta[1]) * 0.92595),
-                int(int(meta[0]) * 0.9021):int(int(meta[0]) * 0.926)]
+                      int(int(meta[0]) * 0.9021):int(int(meta[0]) * 0.926)]
 
     # converts ammo display to gray scale and thresholds out unwanted noise
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -365,8 +366,8 @@ def group_det_ms(final_det, debug, det_range):
                 prev_f = frame
 
     # at the end of the list if the check the last frame and add it to the list of necessary
-    if frame - prev_f <= det_range:
-        cut.append(frame)
+    if final_det[-1] - final_det[-2] <= det_range:
+        cut.append(final_det[-1])
 
     # at the end of the list check if current list is greater than 3 and add it to the cut list if necessary
     if len(cut) >= 3:
