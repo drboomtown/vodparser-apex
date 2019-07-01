@@ -8,7 +8,7 @@ from video_proccessing import cv_proccessing, reduction_det_ms, group_det_ms
 
 
 class ApexVod():
-"""This class covers all the main proccessing of the video file"""
+    """This class covers all the main proccessing of the video file"""
 
     def __init__(self):
         # initialises a few global variables 
