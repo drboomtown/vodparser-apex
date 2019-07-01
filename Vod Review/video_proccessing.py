@@ -4,7 +4,7 @@ import imutils
 import cv2
 
 
-def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord, vid, ref, kill_only, fps):
+def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_coord, vid, ref, kill_only, accuracy):
     """Main function, runs through ammo, health and kill markers to output a dictionary with a list of those values"""
     while vid.isOpened():
         cv2.waitKey(1)
@@ -40,7 +40,7 @@ def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_
             if debug is True:
                 cv2.namedWindow('Video', cv2.WINDOW_NORMAL)
                 cv2.imshow('Video', frame)
-                fps.update()
+                # print(f'frame: {frame_count}')
             # if kill_only is set, this will skip over those functions to save time
             if kill_only is True:
                 ammo = 0
@@ -63,6 +63,11 @@ def cv_proccessing(frame_skip, meta, debug, frame_data, frame_count, health_bar_
             kill = kill_marker(frame, debug, meta)
 
             # appends returned values in a specific order
+
+            if accuracy is False:
+                time = int(vid.get(cv2.CAP_PROP_POS_MSEC)) / 1000
+                frame_no = int(vid.get(cv2.CAP_PROP_POS_FRAMES)) - 1
+                frame_data[frame_no].insert(0, time)
             frame_data[frame_count].append(ammo)
             frame_data[frame_count].append(health)
             frame_data[frame_count].append(kill)
@@ -104,6 +109,8 @@ def kill_marker(frame, debug, meta):
 
     # thresholds frame based on red range
     roi = cv2.inRange(red, low_red, upp_red)
+    if debug is True:
+        cv2.imshow('kill_mark', roi)
 
     # returns an average value of the pixels that are lit
     brightness = np.mean(roi)
@@ -111,6 +118,8 @@ def kill_marker(frame, debug, meta):
     # if a certain amount of pixels are lit up it should indicate the kill markers are on screen
     if 4.38 < brightness < 5.1:
         kill = 1
+        if debug is True:
+            print(f'kill:{kill}')
     else:
         kill = 0
 
@@ -182,11 +191,12 @@ def ammo_count(ref, frame, meta, debug):
             (_, score, _, _) = cv2.minMaxLoc(result)
             scores.append(score)
 
-        if debug is True:
-            print(np.argmax(scores))
-            print(np.amax(scores))
+        # if debug is True:
+        #     if np.amax(scores) >= 0.5:
+        #         print(f'ammo: {np.argmax(scores)}')
+        #         # print(np.amax(scores))
 
-        if np.amax(scores) >= 0.5:
+        if np.amax(scores) >= 0.7:
             ammo.append(str(np.argmax(scores)))
         else:
             ammo_count = 0
@@ -198,6 +208,7 @@ def ammo_count(ref, frame, meta, debug):
     if debug is True:
         cv2.imshow('ref_ammo', ref)
         cv2.imshow('frame_ammo', frame)
+        print(f'ammo: {ammo_count}')
 
     return ammo_count
 
@@ -208,7 +219,7 @@ def health_coord(frame, health_bar_coord, meta, debug):
     # cuts down frame to general area to be searched for the health bar
     # roi = frame[995:1029, 175:417]
     roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
-                int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+          int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
     roi = cv2.resize(roi, (242, 34))
     roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     thresh = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)[1]
@@ -228,8 +239,7 @@ def health_coord(frame, health_bar_coord, meta, debug):
         area = cv2.contourArea(c)
 
         if debug is True:
-            print(cv2.contourArea(c))
-            print(float(w) / h)
+            print(f'contour area: {cv2.contourArea(c)}, aspect ratio: {float(w) / h}')
             cv2.drawContours(thresh, c, -1, (0, 255, 0), 2)
             cv2.imshow('frame', thresh)
 
@@ -255,7 +265,7 @@ def get_health(frame, health_bar_coord, ammo_count, meta, debug):
         # cuts down frame to general area where health bar is located
         # roi = frame[995:1029, 175:417]
         roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
-                    int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+              int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
 
@@ -272,21 +282,22 @@ def get_health(frame, health_bar_coord, ammo_count, meta, debug):
 
         # narrows frame further to only include the health bar
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
-                    health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
+                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
 
         # narrows frame further to only include the shield bar
         roi_s = roi[health_bar_coord[1] - 10:health_bar_coord[1] + health_bar_coord[3] - 16,
-                    health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
-
-        if debug is True:
-            cv2.imshow('roi_h', roi_h)
-            cv2.imshow('roi_s', roi_s)
+                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
 
         # calculates what percentage of the health and shield bar is full based on their brightness
         health = cv2.mean(roi_h)[0]
         health = round(health * 100 / 252)
         shield = cv2.mean(roi_s)[0]
         shield = round(shield * 100 / 241)
+
+        if debug is True:
+            cv2.imshow('roi_h', roi_h)
+            cv2.imshow('roi_s', roi_s)
+            print(f'health:{health}, Shield:{shield}')
 
     # if ammo display is not present and we do not take a reading
     else:
@@ -309,8 +320,8 @@ def reduction_det_ms(frame_data):
             prev_h = values[2]
         # compares current frame to previous frame, looking for a reduction in ammo or reduction in health or
         # if the hit marker was present
-        if int(prev_a) - int(values[1]) == 1 or\
-                8 < int(prev_h) - int(values[2]) < 120 and int(values[2]) != 0 or\
+        if int(prev_a) - int(values[1]) == 1 or \
+                8 < int(prev_h) - int(values[2]) < 120 and int(values[2]) != 0 or \
                 int(values[3]) == 1:
             # if one of those triggers, append the msec value of the frame to a list to be returned,
             # and load current frame info into prev variables to be compared next loop
