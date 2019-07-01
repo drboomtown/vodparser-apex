@@ -1,0 +1,6 @@
+ffmpeg==1.4
+future==0.17.1
+imutils==0.5.2
+numpy==1.16.2
+opencv-python==4.1.0.25
+PyQt4==4.11.4
