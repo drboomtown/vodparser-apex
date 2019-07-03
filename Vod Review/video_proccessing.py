@@ -125,7 +125,8 @@ def kill_marker(frame, debug, meta):
         kill = 0
 
     return kill
-
+    
+    
 def kill_marker_test(frame, debug, meta):
     """ identifies if kill marker present in the frame"""
 
@@ -276,7 +277,7 @@ def ammo_count(ref, frame, meta, debug):
         print(f'ammo: {ammo_count}')
 
     return ammo_count
-
+    
 def ammo_count_test(ref, frame, meta, debug):
     """ Reads ammo counter from video frame by template matching against a reference image """
 
@@ -348,6 +349,7 @@ def ammo_count_test(ref, frame, meta, debug):
 
     return ammo_count
 
+
 def health_coord(frame, health_bar_coord, meta, debug):
     """Finds the health bar and returns its coordinates """
 
@@ -362,7 +364,7 @@ def health_coord(frame, health_bar_coord, meta, debug):
     # finds contours in the frame and sorts them
     health_cnt = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     health_cnt = imutils.grab_contours(health_cnt)
-    if len(health_cnt) < 1:
+    if len(health_cnt) == 0:
         health_bar_coord = None
         return health_bar_coord
     health_cnt = contours.sort_contours(health_cnt, method="left-to-right")[0]
@@ -408,6 +410,7 @@ def get_health(frame, health_bar_coord, ammo_count, meta, debug):
         # and returns a better value based on their colour
         blue, green, red = cv2.split(roi)
         # if red channel is brightest, most likely gold armour is worn and we use the red channel to detect it
+        # the -50 helps clarify between purple and gold armour 
         if cv2.mean(red)[0] - 50 > cv2.mean(blue)[0]:
             roi = np.mean(np.array([red]), axis=0)
         # otherwise, blue channel is acceptable for white, blue and purple armour
@@ -499,7 +502,7 @@ def group_det_ms(final_det, debug, det_range):
                 cut = []
                 prev_f = frame
 
-    # at the end of the list if the check the last frame and add it to the list of necessary
+    # at the end of the list if the check the last frame and add it to the list if necessary
     if final_det[-1] - final_det[-2] <= det_range:
         cut.append(final_det[-1])
 
