@@ -129,14 +129,11 @@ class ApexGui(QtGui.QWidget, QPlainTextEditLogger):
 
         # text box
         logTextBox = QPlainTextEditLogger(self)
-        # You can format what is printed to text box
         logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(message)s', "%H:%M:%S"))
         logging.getLogger().addHandler(logTextBox)
-        # You can control the logging level
         logging.getLogger().setLevel(logging.DEBUG)
 
         self.grid.addWidget(logTextBox.widget, 8, 0, 1, 3)
-
 
         # button box
         self.buttonBox = QtGui.QDialogButtonBox(QtCore.Qt.Horizontal, self)
@@ -188,7 +185,7 @@ class ApexGui(QtGui.QWidget, QPlainTextEditLogger):
         self.output_edit.setText(fname)
 
     def done(self):
-        """ displays log and pop up once clip has finished proccessing """
+        """ displays log and pop up to be displayed once clip has finished proccessing """
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(True)
         self.buttonBox.button(QtGui.QDialogButtonBox.Cancel).setEnabled(False)
         logging.info('complete')
@@ -235,8 +232,9 @@ class ApexGui(QtGui.QWidget, QPlainTextEditLogger):
             self.radio_val = False
 
         self.workThread = WorkThread(self.input_val, self.output_val, self.frame_skip_val, self.merge_val, self.kill_only_val, self.buffer_val, self.range_val, self.radio_val)
-        # self.connect(self.workThread, QtCore.SIGNAL("update(QString)"), self.add)
-
+        
+        # enables the cancel button and connects it to the thread termination function
+        # disables OK button to limit one clip being proccessed at a time
         self.buttonBox.button(QtGui.QDialogButtonBox.Cancel).setEnabled(True)
         self.buttonBox.button(QtGui.QDialogButtonBox.Cancel).clicked.connect(self.workThread.terminate)
         self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
