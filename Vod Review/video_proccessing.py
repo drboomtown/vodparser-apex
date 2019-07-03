@@ -171,10 +171,7 @@ def kill_marker_test(frame, debug, meta):
     
     # baseline max brightness for the mask
     bright_mask = np.mean(mask)
-        
-    if debug is True:
-        cv2.imshow('kill_mark', roi)
-    
+
     # applys the mask to the frame
     red_masked = cv2.bitwise_and(red, red, mask=mask)
     
@@ -183,10 +180,11 @@ def kill_marker_test(frame, debug, meta):
 
     # if a certain amount of pixels are lit up it should indicate the kill markers are on screen
     # if 4.38 < brightness < 5.1:
-    if bright_mask * 0.7 < brightness:
+    if bright_mask * 0.6 < brightness:
         kill = 1
         if debug is True:
             print(f'kill:{kill}')
+            cv2.imshow('kill_mark', red_masked)
     else:
         kill = 0
 
