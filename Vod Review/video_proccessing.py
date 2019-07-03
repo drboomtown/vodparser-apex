@@ -277,6 +277,76 @@ def ammo_count(ref, frame, meta, debug):
 
     return ammo_count
 
+def ammo_count_test(ref, frame, meta, debug):
+    """ Reads ammo counter from video frame by template matching against a reference image """
+
+    # finds all contours in the ref image and sorts them into a list, with the left most contour in position 0
+    ref_cnts = cv2.findContours(ref.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    ref_cnts = imutils.grab_contours(ref_cnts)
+    ref_cnts = contours.sort_contours(ref_cnts, method="left-to-right")[0]
+
+    # assigns each contour a number based on its position in the list, we will use this later to match digits to
+    digits = {}
+    for (i, c) in enumerate(ref_cnts):
+        (x, y, w, h) = cv2.boundingRect(c)
+        roi = ref[y:y + h, x:x + w]
+        roi = cv2.resize(roi, (112, 92))
+        digits[i] = roi
+
+    # cuts down frame to ammo display location.
+
+    frame = frame[int(int(meta[1]) * 0.8917):int(int(meta[1]) * 0.92595),
+                  int(int(meta[0]) * 0.9021):int(int(meta[0]) * 0.926)]
+
+    # converts ammo display to gray scale and thresholds out unwanted noise
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame = cv2.threshold(frame, 200, 255, cv2.THRESH_BINARY)[1]
+
+    # finds contours of ammo display and returns them sorted in a list, left to right
+    ammo_cnts = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    ammo_cnts = imutils.grab_contours(ammo_cnts)
+    if len(ammo_cnts) == 0:
+        ammo_count = 0
+        return ammo_count
+    ammo_cnts = contours.sort_contours(ammo_cnts, method="left-to-right")[0]
+
+    # initialise ammo list
+    ammo = []
+
+    # compares results from ammo display and reference image and returns most confident answer
+    for c in ammo_cnts:
+        (x, y, w, h) = cv2.boundingRect(c)
+        roi = frame[y:y + h, x:x + w]
+        roi = cv2.resize(roi, (112, 92))
+        
+        # initalise score list
+        scores = []
+
+        for (digit, digitROI) in digits.items():
+            # compares every contour from the reference image against the ammo display, and scores it between -1 and 1
+            result = cv2.matchTemplate(roi, digitROI, cv2.TM_CCOEFF_NORMED)
+            # saves the highest value comparison score
+            (_, score, _, _) = cv2.minMaxLoc(result)
+            # adds that score to a list
+            scores.append(score)
+
+        # searchs the list for the highest value, and if that value is over 0.7 
+        if np.amax(scores) >= 0.7:
+            # saves the number position it is in the list to the ammo list
+            ammo.append(str(np.argmax(scores)))
+        else:
+            ammo_count = 0
+            return ammo_count
+
+    # joins answers into a string to return a final value
+    ammo_count = "".join(ammo)
+
+    if debug is True:
+        cv2.imshow('ref_ammo', ref)
+        cv2.imshow('frame_ammo', frame)
+        print(f'ammo: {ammo_count}')
+
+    return ammo_count
 
 def health_coord(frame, health_bar_coord, meta, debug):
     """Finds the health bar and returns its coordinates """
