@@ -4,7 +4,7 @@ from imutils.video import FPS
 from configparser import ConfigParser
 from collections import defaultdict
 from video_edit import get_meta_cv, get_meta, get_frame_data, cut_clip_ms, merge_clips
-from video_proccessing import cv_proccessing, reduction_det_ms, group_det_ms
+from video_processing import cv_processing, reduction_det_ms, group_det_ms
 
 
 class ApexVod():
@@ -22,8 +22,20 @@ class ApexVod():
         # loading the reference image to be used in digit reading
         self.ref = cv2.imread("Reference.png", cv2.IMREAD_GRAYSCALE)
 
-    def main_vod(self, ref, frame_data, frame_count, health_bar_coord, filename, output, kill_only, merge, frame_skip,
-                 det_range, buffer, debug, accuracy=False):
+    def proccess_vod(self,
+                     ref, 
+                     frame_data, 
+                     frame_count, 
+                     health_bar_coord, 
+                     filename, 
+                     output, 
+                     kill_only, 
+                     merge, 
+                     frame_skip, 
+                     det_range, 
+                     buffer, 
+                     debug, 
+                     accuracy=False):
         
         # loads the video file into opencv
         vid = cv2.VideoCapture(filename, cv2.CAP_ANY)
@@ -48,8 +60,9 @@ class ApexVod():
             thread1 = threading.Thread(target=get_frame_data, args=(filename,
                                                                     frame_data))
         
-        # this function is the bulk of the code, it proccesss the video frames and outputs a list of frames with info of what is detected in said frame
-        # this and the accurate frame data are spawned in seperate threads to allow for simultanious proccessing
+        # this function is the bulk of the code,
+        # it processes the video frames and outputs a list of frames with info of what is detected in said frame
+        # this and the accurate frame data are spawned in seperate threads to allow for simultaneous proccessing
         thread2 = threading.Thread(target=cv_proccessing, args=(frame_skip,
                                                                 meta,
                                                                 debug,
@@ -65,7 +78,7 @@ class ApexVod():
             thread1.start()
         thread2.start()
         
-        # waiting for both threads to finish before procceeding
+        # waiting for both threads to finish before proceeding
         if accuracy is True:
             thread1.join() 
         thread2.join()
@@ -75,7 +88,7 @@ class ApexVod():
         # destroying any active windows showing on screen
         cv2.destroyAllWindows()
         
-        # calling function to compare a frame to the previous frame and detect if certain paramaters have been meta
+        # calling function to compare a frame to the previous frame and detect if certain paramaters have been met
         # eg. health reducing, ammo reducing, or frame marker on screen
         final_det = reduction_det_ms(frame_data)
         
