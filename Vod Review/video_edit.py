@@ -18,9 +18,18 @@ def get_meta_cv(vid):
 
 def get_meta(filename):
     """ Extract Meta info using ffprobe """
-    cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_entries',
-               'stream=width,height,avg_frame_rate,duration,nb_frames', '-of', 'csv=p=0', filename], stderr=PIPE,
-              stdout=PIPE)
+    cmd = run(['ffprobe',
+               '-v',
+               'quiet',
+               '-select_streams',
+               'v:0',
+               '-show_entries',
+               'stream=width,height,avg_frame_rate,duration,nb_frames',
+               '-of',
+               'csv=p=0',
+               filename],
+               stderr=PIPE,
+               stdout=PIPE)
     if cmd.returncode != 0:
         stdout = cmd.stdout.decode('utf-8')
         stderr = cmd.stderr.decode('utf-8')
@@ -35,12 +44,23 @@ def get_meta(filename):
     return meta
 
 
-def get_frame_data(filename, frame_data):
+def get_frame_data(filename,
+                   frame_data):
     """ Extract time code for every frame using ffprobe """
     # print('start probe')
-    cmd = run(['ffprobe', '-v', 'quiet', '-select_streams', 'v:0', '-show_frames', '-show_entries',
-               'frame=best_effort_timestamp_time,coded_picture_number', '-of', 'csv=p=0', filename], stderr=PIPE,
-              stdout=PIPE)
+    cmd = run(['ffprobe',
+               '-v',
+               'quiet',
+               '-select_streams',
+               'v:0',
+               '-show_frames',
+               '-show_entries',
+               'frame=best_effort_timestamp_time,coded_picture_number',
+               '-of',
+               'csv=p=0',
+               filename],
+               stderr=PIPE,
+               stdout=PIPE)
     # print('done probe')
     if cmd.returncode != 0:
         stdout = cmd.stdout.decode('utf-8')
@@ -62,7 +82,10 @@ def get_frame_data(filename, frame_data):
 # '-vcodec', 'h264', '-acodec', 'aac',
 
 
-def cut_clip_ms(cut_list, buffer, filename, output_path=''):
+def cut_clip_ms(cut_list,
+                buffer,
+                filename,
+                output_path=''):
     """Cut as many clips as in given list, also passes output names for merge later"""
     merge_list = []
     for frames in cut_list:
@@ -74,15 +97,30 @@ def cut_clip_ms(cut_list, buffer, filename, output_path=''):
         extension = extension[-1].split('.')
         output = f'{output_path}{".".join(extension[0:-2])}_{start}_{end}.{extension[-1]}'
 
-        run(['ffmpeg', '-v', 'error', '-ss', str(start), '-i', str(filename), '-t', str(duration), '-c', 'copy',
-             '-avoid_negative_ts', str(1), '-y', output])
+        run(['ffmpeg',
+             '-v',
+             'error',
+             '-ss',
+             str(start),
+             '-i',
+             str(filename),
+             '-t',
+             str(duration),
+             '-c',
+             'copy',
+             '-avoid_negative_ts',
+             str(1),
+             '-y',
+             output])
 
         merge_list.append(output)
 
     return merge_list
 
 
-def merge_clips(filename, merge_list, output_path=''):
+def merge_clips(filename,
+                merge_list,
+                output_path=''):
     """concat clips previously cut by cut_clip if desired"""
     extension = re.split('\\/', filename)
     extension = extension[-1].split('.')
@@ -94,4 +132,17 @@ def merge_clips(filename, merge_list, output_path=''):
         f.write(f"file '{name}'\n")
     f.close()
 
-    run(['ffmpeg', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', temp_merge, '-c', 'copy', '-y', output])
+    run(['ffmpeg',
+         '-v',
+         'error',
+         '-f',
+         'concat',
+         '-safe',
+         '0',
+         '-i',
+         temp_merge,
+         '-c',
+         'copy',
+         '-y',
+         output])
+    
