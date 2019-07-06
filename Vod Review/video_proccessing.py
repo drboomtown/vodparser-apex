@@ -2,17 +2,19 @@ from imutils import contours
 import numpy as np
 import imutils
 import cv2
+import logging
+
 
 def cv_processing(frame_skip,
-                   meta,
-                   debug,
-                   frame_data,
-                   frame_count,
-                   health_bar_coord,
-                   vid,
-                   ref,
-                   kill_only,
-                   accuracy):
+                  meta,
+                  debug,
+                  frame_data,
+                  frame_count,
+                  health_bar_coord,
+                  vid,
+                  ref,
+                  kill_only,
+                  accuracy):
     """Main function, runs through ammo, health and kill markers
        to output a dictionary with a list of those values"""
     while vid.isOpened():
@@ -94,6 +96,11 @@ def cv_processing(frame_skip,
                 frame_no = int(vid.get(cv2.CAP_PROP_POS_FRAMES)) - 1
                 frame_data[frame_no].insert(0, time)
 
+            try:
+                health
+            except NameError:
+                health = 0
+
             frame_data[frame_count].append(ammo)
             frame_data[frame_count].append(health)
             frame_data[frame_count].append(kill)
@@ -131,13 +138,13 @@ def kill_marker(frame,
     # converts frame to HSV format
     roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-    # applys the mask to the frame and blurs it a little to get more consistent colors
+    # apply the mask to the frame and blurs it a little to get more consistent colors
     red = cv2.bitwise_and(roi, roi, mask=mask)
     red = cv2.GaussianBlur(red, (3, 3), 0)
 
     # thresholds frame based on red range
     roi = cv2.inRange(red, low_red, upp_red)
-    
+
     if debug is True:
         cv2.imshow('kill_mark', roi)
 
@@ -153,8 +160,8 @@ def kill_marker(frame,
         kill = 0
 
     return kill
-    
-    
+
+
 def kill_marker_test(frame,
                      debug,
                      meta):
@@ -164,32 +171,32 @@ def kill_marker_test(frame,
     roi = frame[int(int(meta[1]) * 0.4537):int(int(meta[1]) * 0.5462),
                 int(int(meta[0]) * 0.4739):int(int(meta[0]) * 0.526)]
     roi = cv2.resize(roi, (100, 100))
-    
+
     # converts frame to HSV format
     roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    
+
     # range of red to detect in HSV format
     low_red = np.array([4, 190, 140])
     upp_red = np.array([7, 230, 250])
-    
+
     # blurs it a little to get more consistent colors
     roi = cv2.GaussianBlur(roi, (3, 3), 0)
-    
+
     # thresholds frame based on red range
     red = cv2.inRange(roi, low_red, upp_red)
-        
+
     # finds all contours in red channel
     mark_cnts = cv2.findContours(red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     mark_cnts = imutils.grab_contours(mark_cnts)
-    
+
     # if kill marker is present and clear, only 4 contours should be on screen
     if len(mark_cnts) != 4:
         kill = 0
         return kill
-    
+
     # creates mask in the shape of the kill cross hairs
     mask = np.zeros(roi.shape, np.uint8)
-    
+
     # draw contour areas onto the mask image in white,
     ## should i draw lines or contours to filter out reds contours potentially not in kill marker locations?
     # cv.drawContours(mask, mark_cnts, -1, (255,255,255), -1)
@@ -200,13 +207,13 @@ def kill_marker_test(frame,
 
     # converts mask to gray scale
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-    
+
     # baseline max brightness for the mask
     bright_mask = np.mean(mask)
 
-    # applys the mask to the frame
+    # apply the mask to the frame
     red_masked = cv2.bitwise_and(red, red, mask=mask)
-    
+
     # returns an average value of the pixels that are lit
     brightness = np.mean(red_masked)
 
@@ -314,7 +321,8 @@ def ammo_count(ref,
         print(f'ammo: {ammo_count}')
 
     return ammo_count
-    
+
+
 def ammo_count_test(ref,
                     frame,
                     meta,
@@ -360,8 +368,8 @@ def ammo_count_test(ref,
         (x, y, w, h) = cv2.boundingRect(c)
         roi = frame[y:y + h, x:x + w]
         roi = cv2.resize(roi, (112, 92))
-        
-        # initalise score list
+
+        # initialise score list
         scores = []
 
         for (digit, digitROI) in digits.items():
@@ -373,7 +381,7 @@ def ammo_count_test(ref,
             # adds that score to a list
             scores.append(score)
 
-        # searchs the list for the highest value, and if that value is over 0.7 
+        # searches the list for the highest value, and if that value is over 0.7
         if np.amax(scores) >= 0.7:
             # saves the number position it is in the list to the ammo list
             ammo.append(str(np.argmax(scores)))
@@ -401,7 +409,7 @@ def health_coord(frame,
     # cuts down frame to general area to be searched for the health bar
     # roi = frame[995:1029, 175:417]
     roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
-          int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+                int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
     roi = cv2.resize(roi, (242, 34))
     roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     thresh = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)[1]
@@ -453,19 +461,19 @@ def get_health(frame,
         # cuts down frame to general area where health bar is located
         # roi = frame[995:1029, 175:417]
         roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
-              int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
+                    int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
 
         # splits image into three separate channels,
         # this helps identify what rarity of armour is worn for shields
         blue, green, red = cv2.split(roi)
-        
+
         # if red channel is brightest, most likely gold armour is worn
-        # the -50 helps clarify between purple and gold armour 
+        # the -50 helps clarify between purple and gold armour
         if cv2.mean(red)[0] - 50 > cv2.mean(blue)[0]:
             roi = np.mean(np.array([red]), axis=0)
-            
+
         # otherwise, blue channel is acceptable for white, blue and purple armour
         else:
             roi = np.mean(np.array([blue]), axis=0)
@@ -473,11 +481,11 @@ def get_health(frame,
 
         # narrows frame further to only include the health bar
         roi_h = roi[health_bar_coord[1]:health_bar_coord[1] + health_bar_coord[3],
-                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
+                    health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2]]
 
         # narrows frame further to only include the shield bar
         roi_s = roi[health_bar_coord[1] - 10:health_bar_coord[1] + health_bar_coord[3] - 16,
-                health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
+                    health_bar_coord[0]:health_bar_coord[0] + health_bar_coord[2] - 6]
 
         # calculates the percentage of the health and shield bar based on their brightness
         health = cv2.mean(roi_h)[0]
@@ -509,7 +517,7 @@ def reduction_det_ms(frame_data):
         if prev_a is None:
             prev_a = values[1]
             prev_h = values[2]
-            
+
         # compares current frame to previous frame,
         # looking for a reduction in ammo or reduction in health or if the hit marker was present
         if int(prev_a) - int(values[1]) == 1 or \
