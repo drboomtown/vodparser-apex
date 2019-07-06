@@ -1,6 +1,7 @@
 from subprocess import run, PIPE
 import cv2
 import re
+import logging
 
 
 def get_meta_cv(vid):
@@ -28,8 +29,8 @@ def get_meta(filename):
                '-of',
                'csv=p=0',
                filename],
-               stderr=PIPE,
-               stdout=PIPE)
+              stderr=PIPE,
+              stdout=PIPE)
     if cmd.returncode != 0:
         stdout = cmd.stdout.decode('utf-8')
         stderr = cmd.stderr.decode('utf-8')
@@ -48,6 +49,7 @@ def get_frame_data(filename,
                    frame_data):
     """ Extract time code for every frame using ffprobe """
     # print('start probe')
+    logging.info(f'probe start')
     cmd = run(['ffprobe',
                '-v',
                'quiet',
@@ -59,8 +61,8 @@ def get_frame_data(filename,
                '-of',
                'csv=p=0',
                filename],
-               stderr=PIPE,
-               stdout=PIPE)
+              stderr=PIPE,
+              stdout=PIPE)
     # print('done probe')
     if cmd.returncode != 0:
         stdout = cmd.stdout.decode('utf-8')
@@ -77,6 +79,7 @@ def get_frame_data(filename,
         msec = frame_list.pop(0)
         frame = int(frame_list.pop(0))
         frame_data[frame].insert(0, msec)
+    logging.info(f'probe finished')
 
 
 # '-vcodec', 'h264', '-acodec', 'aac',
@@ -87,6 +90,7 @@ def cut_clip_ms(cut_list,
                 filename,
                 output_path=''):
     """Cut as many clips as in given list, also passes output names for merge later"""
+    logging.info(f'cut start')
     merge_list = []
     for frames in cut_list:
         start = round(frames[0] - buffer)
@@ -114,13 +118,14 @@ def cut_clip_ms(cut_list,
              output])
 
         merge_list.append(output)
-
+    logging.info(f'cut finished')
     return merge_list
 
 
 def merge_clips(filename,
                 merge_list,
                 output_path=''):
+    logging.info(f'merge start')
     """concat clips previously cut by cut_clip if desired"""
     extension = re.split('\\/', filename)
     extension = extension[-1].split('.')
@@ -145,4 +150,4 @@ def merge_clips(filename,
          'copy',
          '-y',
          output])
-    
+    logging.info(f'merge finished')
