@@ -1,6 +1,5 @@
 import sys
-import os
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from video_main import ApexVod
 
 import logging
@@ -8,8 +7,10 @@ import logging
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
+
 class Logger(logging.Handler):
     """ Logging module """
+
     def __init__(self, parent):
         super().__init__()
         self.widget = QtWidgets.QPlainTextEdit(parent)
@@ -21,7 +22,9 @@ class Logger(logging.Handler):
 
 
 class WorkThread(QtCore.QThread):
-    """ Thread for video proccessing """
+    """ Thread for video processing """
+    sig_fin = QtCore.pyqtSignal(str)
+
     def __init__(self,
                  input_val,
                  output_val,
@@ -31,7 +34,6 @@ class WorkThread(QtCore.QThread):
                  buffer_val,
                  range_val,
                  radio_val):
-
         QtCore.QThread.__init__(self)
         self.input_val = input_val
         self.output_val = output_val
@@ -41,12 +43,12 @@ class WorkThread(QtCore.QThread):
         self.buffer_val = buffer_val
         self.range_val = range_val
         self.radio_val = radio_val
+        self.__abort = False
 
-    def __del__(self):
-
-        self.exiting = True
-        # quits the thread once finished running, emits finished() signal 
-        self.wait()
+    # def __del__(self):
+    #     # self.exiting = True
+    #     # quits the thread once finished running, emits finished() signal
+    #     self.wait()
 
     # def onfinish(self):
     #     self.finish()
@@ -66,20 +68,22 @@ class WorkThread(QtCore.QThread):
                              self.buffer_val,
                              apexvod.debug,
                              self.radio_val)
-        # self.quit()
+        self.sig_fin.emit(self.input_val)
 
 
-class ApexGui(QtWidgets.QWidget, Logger):
+class ApexGui(QtWidgets.QDialog, QtWidgets.QPlainTextEdit):
     """ Gui  """
-    def __init__(self):
-        super(ApexGui, self).__init__()
 
-        self.initUI()
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
-    def initUI(self):
+        self.init_ui()
 
-        self.resize(642, 254)
+    def init_ui(self):
+
+        self.resize(620, 260)
         self.center()
+
         self.grid = QtWidgets.QGridLayout()
         self.grid.setSpacing(10)
 
@@ -94,8 +98,8 @@ class ApexGui(QtWidgets.QWidget, Logger):
 
         self.input_btn = QtWidgets.QPushButton('Browse', self)
         self.output_btn = QtWidgets.QPushButton('Browse', self)
-        self.input_btn.clicked.connect(self.selectFileInput)
-        self.output_btn.clicked.connect(self.selectFileOutput)
+        self.input_btn.clicked.connect(self.select_file_input)
+        self.output_btn.clicked.connect(self.select_file_output)
 
         self.grid.addWidget(self.input, 1, 0)
         self.grid.addWidget(self.input_edit, 1, 1)
@@ -109,6 +113,12 @@ class ApexGui(QtWidgets.QWidget, Logger):
         self.frame_skip_cb = QtWidgets.QCheckBox('Frame Skip', self)
         self.merge_cb = QtWidgets.QCheckBox('Merge', self)
         self.kill_only_cb = QtWidgets.QCheckBox('Kill only', self)
+        self.frame_skip_cb.setToolTip(
+            'Skips over every selected number of frames, more frames skipped means faster proccessing but less accurate results')
+        self.merge_cb.setToolTip(
+            'Merges all clips cut from input file into a single video')
+        self.kill_only_cb.setToolTip(
+            'Only considers kills when processing video')
         self.grid.addWidget(self.frame_skip_cb, 3, 0)
         self.grid.addWidget(self.merge_cb, 6, 0)
         self.grid.addWidget(self.kill_only_cb, 6, 1)
@@ -136,36 +146,44 @@ class ApexGui(QtWidgets.QWidget, Logger):
         self.grid.addWidget(self.spinBox_range, 5, 1)
 
         self.buffer_label = QtWidgets.QLabel('Buffer')
+        self.buffer_label.setToolTip(
+            'Time in seconds that will be added before and after a clip for transitions')
         self.range_label = QtWidgets.QLabel('Range')
+        self.range_label.setToolTip(
+            'Time in seconds that detections will be consider part of the same clip, a higher range will string together extended fights')
         self.grid.addWidget(self.buffer_label, 4, 0)
         self.grid.addWidget(self.range_label, 5, 0)
 
         # radio buttons
-        self.radioButton_fast = QtWidgets.QRadioButton('Fast', self)
-        self.radioButton_accurate = QtWidgets.QRadioButton('Accurate', self)
+        self.radio_btn_fast = QtWidgets.QRadioButton('Fast', self)
+        self.radio_btn_fast.setChecked(True)
+        self.radio_btn_fast.setToolTip(
+            'Select for fastest processing, output may be inaccurate')
+        self.radio_btn_accurate = QtWidgets.QRadioButton('Accurate', self)
+        self.radio_btn_accurate.setToolTip(
+            'Select for most accurate output results, significantly increases processing time')
 
-        self.grid.addWidget(self.radioButton_fast, 7, 0)
-        self.grid.addWidget(self.radioButton_accurate, 7, 1)
+        self.grid.addWidget(self.radio_btn_fast, 7, 0)
+        self.grid.addWidget(self.radio_btn_accurate, 7, 1)
 
         # text box
-        logTextBox = Logger(self)
-        logTextBox.setFormatter(logging.Formatter('%(asctime)s - %(message)s', "%H:%M:%S"))
-        logging.getLogger().addHandler(logTextBox)
+        log_text_box = Logger(self)
+        log_text_box.setFormatter(logging.Formatter('%(asctime)s - %(message)s', "%H:%M:%S"))
+        logging.getLogger().addHandler(log_text_box)
         logging.getLogger().setLevel(logging.DEBUG)
 
-        self.grid.addWidget(logTextBox.widget, 8, 0, 1, 3)
+        self.grid.addWidget(log_text_box.widget, 8, 0, 1, 3)
 
         # button box
         self.buttonBox = QtWidgets.QDialogButtonBox(QtCore.Qt.Horizontal, self)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(False)
-        self.grid.addWidget(self.buttonBox, 9, 1)
-        
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(self.start_vod_proccessing)
+        self.grid.addWidget(self.buttonBox, 9, 1, 1, 2)
+
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).clicked.connect(self.start_vod_processing)
 
         self.setLayout(self.grid)
 
-        # self.statusBar()
         self.setWindowTitle('Apex Vod Auto Editor')
 
         # QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Cleanlooks'))
@@ -174,44 +192,44 @@ class ApexGui(QtWidgets.QWidget, Logger):
 
     def center(self):
         """ centers the window to the center of the screen when opened """
-        frameGm = self.frameGeometry()
+        frame_gm = self.frameGeometry()
         screen = QtWidgets.QApplication.desktop().screenNumber(QtWidgets.QApplication.desktop().cursor().pos())
-        centerPoint = QtWidgets.QApplication.desktop().screenGeometry(screen).center()
-        centerPoint.setX(centerPoint.x() - frameGm.width() / 2)
-        centerPoint.setY(centerPoint.y() - frameGm.height() / 2)
-        frameGm.moveTo(centerPoint)
-        self.move(frameGm.topLeft())
+        center_point = QtWidgets.QApplication.desktop().screenGeometry(screen).center()
+        center_point.setX(center_point.x() - frame_gm.width() / 2)
+        center_point.setY(center_point.y() - frame_gm.height() / 2)
+        frame_gm.moveTo(center_point)
+        self.move(frame_gm.topLeft())
 
     def closeEvent(self, event):
         """ spawns a pop up to check if you intended to exit """
 
         reply = QtWidgets.QMessageBox.question(self,
-                                           'Message',
-                                           "Are you sure you want to quit?",
-                                           QtWidgets.QMessageBox.Yes |
-                                           QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
+                                               'Message',
+                                               "Are you sure you want to quit?",
+                                               QtWidgets.QMessageBox.Yes |
+                                               QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
 
-    def selectFileInput(self):
+    def select_file_input(self):
         """ File selection pop up for input """
-        fname = QtWidgets.QFileDialog.getOpenFileName(self,
-                                                  'Select file',
-                                                  'C:\\',
-                                                  "Video files (*.mp4 *.avi *.mkv )"
+        fname, _ = QtWidgets.QFileDialog.getOpenFileName(self,
+                                                         'Select file',
+                                                         'C:\\',
+                                                         options=QtWidgets.QFileDialog.Options())
+
         self.input_edit.setText(fname)
 
-    def selectFileOutput(self):
+    def select_file_output(self):
         """ Folder selection pop up for output """
         fname = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select folder', 'C:\\')
         self.output_edit.setText(fname)
 
-    def start_vod_proccessing(self):
+    def start_vod_processing(self):
         """ Connected to Ok button, collects info from GUI and passes it to the code """
-        logging.info('start')
 
         self.input_val = self.input_edit.text()
         self.output_val = self.output_edit.text() + '\\' if self.output_edit.text() else ''
@@ -220,34 +238,39 @@ class ApexGui(QtWidgets.QWidget, Logger):
         self.kill_only_val = self.kill_only_cb.isChecked()
         self.buffer_val = self.spinBox_buffer.value()
         self.range_val = self.spinBox_range.value()
-        self.radio_val = self.radioButton_accurate.isChecked()
+        self.radio_val = self.radio_btn_accurate.isChecked()
 
-        self.workThread = WorkThread(self.input_val,
+        text_start = self.input_val.split("/")
+        logging.info(f'Starting - {text_start[-1]}')
+
+        self.workthread = WorkThread(self.input_val,
                                      self.output_val,
                                      self.frame_skip_val,
                                      self.merge_val,
                                      self.kill_only_val,
                                      self.buffer_val,
                                      self.range_val,
-                                     self.radio_val)
-        
+                                     self.radio_val,
+                                     )
+
         # enables the cancel button and connects it to the thread termination function
-        # disables OK button to limit one clip being proccessed at a time
+        # disables OK button to limit one clip being processed at a time
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(True)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(self.workThread.exit)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).clicked.connect(self.workthread.terminate)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
 
-        self.workThread.start()
+        self.workthread.start()
 
         # self.connect(self.workThread, QtCore.SIGNAL("finished()"), self.done)
-        self.workThread.finished.connect(self.done)
-        
-    def done(self):
-        """ displays log and pop up to be displayed once clip has finished proccessing """
+        self.workthread.sig_fin.connect(self.clip_done)
+
+    def clip_done(self, text):
+        """ displays log and pop up to be displayed once clip has finished processing """
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(False)
-        logging.info('complete')
-        QtWidgets.QMessageBox.information(self, "Finished", f"{self.input_val} has finished proccessing.")
+        text_fin = text.split("/")
+        logging.info(f'Complete - {text_fin[-1]}')
+        QtWidgets.QMessageBox.information(self, "Finished", f"{text_fin[-1]}\nhas finished processing.")
 
 
 def main():
