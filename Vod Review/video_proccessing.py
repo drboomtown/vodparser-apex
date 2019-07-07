@@ -111,9 +111,9 @@ def cv_processing(frame_skip,
             break
 
 
-def kill_marker(frame,
-                debug,
-                meta):
+def kill_marker_old(frame,
+                    debug,
+                    meta):
     """ identifies if kill marker present in the frame"""
 
     # cuts down frame to cross hairs
@@ -162,14 +162,14 @@ def kill_marker(frame,
     return kill
 
 
-def kill_marker_test(frame,
-                     debug,
-                     meta):
+def kill_marker(frame,
+                debug,
+                meta):
     """ identifies if kill marker present in the frame"""
 
     # cuts down frame to cross hairs
     roi = frame[int(int(meta[1]) * 0.4537):int(int(meta[1]) * 0.5462),
-                int(int(meta[0]) * 0.4739):int(int(meta[0]) * 0.526)]
+                int(int(meta[0]) * 0.4739): int(int(meta[0]) * 0.526)]
     roi = cv2.resize(roi, (100, 100))
 
     # converts frame to HSV format
@@ -177,10 +177,10 @@ def kill_marker_test(frame,
 
     # range of red to detect in HSV format
     low_red = np.array([4, 190, 140])
-    upp_red = np.array([7, 230, 250])
+    upp_red = np.array([7, 255, 255])
 
     # blurs it a little to get more consistent colors
-    roi = cv2.GaussianBlur(roi, (3, 3), 0)
+    roi = cv2.medianBlur(roi, 5)
 
     # thresholds frame based on red range
     red = cv2.inRange(roi, low_red, upp_red)
@@ -189,21 +189,27 @@ def kill_marker_test(frame,
     mark_cnts = cv2.findContours(red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     mark_cnts = imutils.grab_contours(mark_cnts)
 
-    # if kill marker is present and clear, only 4 contours should be on screen
-    if len(mark_cnts) != 4:
+    # if kill marker is present and clear, only 3 or 4 contours should be on screen
+    if len(mark_cnts) != 3 and len(mark_cnts) != 4 and len(mark_cnts) != 5:
         kill = 0
         return kill
+
+    # Filters out any contours that are too big
+    for cnt in mark_cnts:
+        area = cv2.contourArea(cnt)
+        if area > 100:
+            kill = 0
+            return kill
 
     # creates mask in the shape of the kill cross hairs
     mask = np.zeros(roi.shape, np.uint8)
 
-    # draw contour areas onto the mask image in white,
-    ## should i draw lines or contours to filter out reds contours potentially not in kill marker locations?
-    # cv.drawContours(mask, mark_cnts, -1, (255,255,255), -1)
-    cv2.line(mask, (5, 5), (23, 23), (255, 255, 255), 2)
-    cv2.line(mask, (5, 95), (23, 77), (255, 255, 255), 2)
-    cv2.line(mask, (95, 6), (77, 24), (255, 255, 255), 2)
-    cv2.line(mask, (95, 95), (77, 77), (255, 255, 255), 2)
+    # draw contour areas onto the mask image in white, should i draw lines or contours to filter out reds contours potentially not in kill marker locations?
+    # cv2.drawContours(mask, mark_cnts, -1, (255,255,255), -1)
+    cv2.line(mask, (5, 5), (23, 23), (255, 255, 255), 3)
+    cv2.line(mask, (5, 95), (23, 77), (255, 255, 255), 3)
+    cv2.line(mask, (95, 6), (77, 24), (255, 255, 255), 3)
+    cv2.line(mask, (95, 95), (77, 77), (255, 255, 255), 3)
 
     # converts mask to gray scale
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
@@ -211,19 +217,20 @@ def kill_marker_test(frame,
     # baseline max brightness for the mask
     bright_mask = np.mean(mask)
 
-    # apply the mask to the frame
+    if debug is True:
+        cv2.imshow('kill_mark', roi)
+
+    # applys the mask to the frame
     red_masked = cv2.bitwise_and(red, red, mask=mask)
 
     # returns an average value of the pixels that are lit
     brightness = np.mean(red_masked)
 
     # if a certain amount of pixels are lit up it should indicate the kill markers are on screen
-    # if 4.38 < brightness < 5.1:
-    if bright_mask * 0.6 < brightness:
+    if bright_mask * 0.4 < brightness:
         kill = 1
         if debug is True:
             print(f'kill:{kill}')
-            cv2.imshow('kill_mark', red_masked)
     else:
         kill = 0
 
