@@ -118,7 +118,7 @@ class ApexGui(QtWidgets.QDialog, QtWidgets.QPlainTextEdit):
         self.merge_cb.setToolTip(
             'Merges all clips cut from input file into a single video')
         self.kill_only_cb.setToolTip(
-            'Only considers kills when processing video')
+            'Only considers kills when processing video, not reliable right now')
         self.grid.addWidget(self.frame_skip_cb, 3, 0)
         self.grid.addWidget(self.merge_cb, 6, 0)
         self.grid.addWidget(self.kill_only_cb, 6, 1)
