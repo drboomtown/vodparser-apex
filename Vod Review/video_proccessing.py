@@ -17,6 +17,9 @@ def cv_processing(frame_skip,
                   accuracy):
     """Main function, runs through ammo, health and kill markers
        to output a dictionary with a list of those values"""
+       
+    ammo_ref = digit_ref_extract_test(ref)
+    
     while vid.isOpened():
         cv2.waitKey(1)
 
@@ -29,12 +32,12 @@ def cv_processing(frame_skip,
             if int(frame_no) % frame_skip == 0:
                 ret, frame = vid.retrieve()
             else:
-                # will set dummy values to the first frame in the vid,
+                # sets dummy values to the first frame in the vid,
                 # otherwise it will crash
                 if frame_count == 0:
-                    ammo = 0
-                    health = 0
-                    kill = 0
+                    ammo = None
+                    health = None
+                    kill = None
                     frame_data[frame_count].append(ammo)
                     frame_data[frame_count].append(health)
                     frame_data[frame_count].append(kill)
@@ -61,10 +64,10 @@ def cv_processing(frame_skip,
             else:
                 # ammo is returned first as get_health uses the ammo value
                 # to determine of the inventory is open
-                ammo = ammo_count(ref,
-                                  frame,
-                                  meta,
-                                  debug)
+                ammo = ammo_count_test(ammo_ref,
+                                       frame,
+                                       meta,
+                                       debug)
 
                 # this will locate the health bar first and give coordinates to get_health
                 if health_bar_coord is None:
@@ -75,7 +78,7 @@ def cv_processing(frame_skip,
                     # if the health bar is still not located,
                     # just say health is 0 and try again next frame
                     if health_bar_coord is None:
-                        health = 0
+                        health = None
                 else:
                     # once health bar is located, we will start reading actual health levels
                     health = get_health(frame,
@@ -99,7 +102,7 @@ def cv_processing(frame_skip,
             try:
                 health
             except NameError:
-                health = 0
+                health = None
 
             frame_data[frame_count].append(ammo)
             frame_data[frame_count].append(health)
@@ -169,9 +172,17 @@ def kill_marker(frame,
 
     # cuts down frame to cross hairs
     roi = frame[int(int(meta[1]) * 0.4537):int(int(meta[1]) * 0.5462),
-                int(int(meta[0]) * 0.4739): int(int(meta[0]) * 0.526)]
+                int(int(meta[0]) * 0.4739):int(int(meta[0]) * 0.526)]
     roi = cv2.resize(roi, (100, 100))
-
+    
+    # edges = cv.Canny(roi,100,200)
+    # cv2.imshow('Edges',edges)
+    
+    # blurs it a little to get more consistent colors
+    roi = cv2.medianBlur(roi, 5)
+    # roi = cv2.GaussianBlur(roi, (3, 3), 0)
+    # roi = cv2.bilateralFilter(roi, 5, 75, 75)
+    
     # converts frame to HSV format
     roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
@@ -179,11 +190,10 @@ def kill_marker(frame,
     low_red = np.array([4, 190, 140])
     upp_red = np.array([7, 255, 255])
 
-    # blurs it a little to get more consistent colors
-    roi = cv2.medianBlur(roi, 5)
-
     # thresholds frame based on red range
     red = cv2.inRange(roi, low_red, upp_red)
+    # kernel = np.ones((3,3),np.uint8)
+    # red = cv.dilate(red,kernel,iterations = 1)
 
     # finds all contours in red channel
     mark_cnts = cv2.findContours(red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -194,7 +204,7 @@ def kill_marker(frame,
         kill = 0
         return kill
 
-    # Filters out any contours that are too big
+    # checks if contours are too big
     for cnt in mark_cnts:
         area = cv2.contourArea(cnt)
         if area > 100:
@@ -204,8 +214,7 @@ def kill_marker(frame,
     # creates mask in the shape of the kill cross hairs
     mask = np.zeros(roi.shape, np.uint8)
 
-    # draw contour areas onto the mask image in white, should i draw lines or contours to filter out reds contours potentially not in kill marker locations?
-    # cv2.drawContours(mask, mark_cnts, -1, (255,255,255), -1)
+    # draw contour areas onto the mask image in white
     cv2.line(mask, (5, 5), (23, 23), (255, 255, 255), 3)
     cv2.line(mask, (5, 95), (23, 77), (255, 255, 255), 3)
     cv2.line(mask, (95, 6), (77, 24), (255, 255, 255), 3)
@@ -221,10 +230,10 @@ def kill_marker(frame,
         cv2.imshow('kill_mark', roi)
 
     # applys the mask to the frame
-    red_masked = cv2.bitwise_and(red, red, mask=mask)
+    # red_masked = cv2.bitwise_and(red, red, mask=mask)
 
     # returns an average value of the pixels that are lit
-    brightness = np.mean(red_masked)
+    brightness = np.mean(red)
 
     # if a certain amount of pixels are lit up it should indicate the kill markers are on screen
     if bright_mask * 0.4 < brightness:
@@ -288,7 +297,7 @@ def ammo_count(ref,
     ammo_cnts = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     ammo_cnts = imutils.grab_contours(ammo_cnts)
     if len(ammo_cnts) == 0:
-        ammo_count = 0
+        ammo_count = None
         return ammo_count
     ammo_cnts = contours.sort_contours(ammo_cnts, method="left-to-right")[0]
 
@@ -316,7 +325,7 @@ def ammo_count(ref,
         if np.amax(scores) >= 0.7:
             ammo.append(str(np.argmax(scores)))
         else:
-            ammo_count = 0
+            ammo_count = None
             return ammo_count
 
     # joins answers into a string to return a final value
@@ -329,27 +338,31 @@ def ammo_count(ref,
 
     return ammo_count
 
-
-def ammo_count_test(ref,
-                    frame,
-                    meta,
-                    debug):
-    """ Reads ammo counter from video frame by template matching against a reference image """
-
+    
+def digit_ref_extract_test(ref):
+    """ Locates all digits in the reference image for digit matching """
     # finds all contours in the ref image and sorts them into a list,
     # with the left most contour in position 0
     ref_cnts = cv2.findContours(ref.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     ref_cnts = imutils.grab_contours(ref_cnts)
     ref_cnts = contours.sort_contours(ref_cnts, method="left-to-right")[0]
 
-    # assigns each contour a number based on its position in the list,
-    # we will use this later to match digits
+    # grabs the region the contour is located, cuts it out and saves it against
+    # its number in the list
     digits = {}
     for (i, c) in enumerate(ref_cnts):
         (x, y, w, h) = cv2.boundingRect(c)
         roi = ref[y:y + h, x:x + w]
         roi = cv2.resize(roi, (112, 92))
         digits[i] = roi
+    
+    return digits    
+
+def ammo_count_test(digits,
+                    frame,
+                    meta,
+                    debug):
+    """ Reads ammo counter from video frame by template matching against a reference image """
 
     # cuts down frame to ammo display location.
     frame = frame[int(int(meta[1]) * 0.8917):int(int(meta[1]) * 0.92595),
@@ -363,7 +376,7 @@ def ammo_count_test(ref,
     ammo_cnts = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     ammo_cnts = imutils.grab_contours(ammo_cnts)
     if len(ammo_cnts) == 0:
-        ammo_count = 0
+        ammo_count = None
         return ammo_count
     ammo_cnts = contours.sort_contours(ammo_cnts, method="left-to-right")[0]
 
@@ -393,7 +406,7 @@ def ammo_count_test(ref,
             # saves the number position it is in the list to the ammo list
             ammo.append(str(np.argmax(scores)))
         else:
-            ammo_count = 0
+            ammo_count = None
             return ammo_count
 
     # joins answers into a string to return a final value
@@ -459,15 +472,18 @@ def get_health(frame,
                ammo_count,
                meta,
                debug):
-    """ splits health and shield,
-        finds what level they are rounded to the nearest 5 and returns that"""
+    """ splits health and shield, finds their fullness and returns the value"""
+    
+    # if ammo display is not present and we do not take a reading
+    if ammo_count is None:
+        return None
 
     # if the ammo display is present and has returned a string value,
     # we will read the health and shield level
-    if type(ammo_count) is str:
+    else:
         # cuts down frame to general area where health bar is located
         # roi = frame[995:1029, 175:417]
-        roi = frame[int(int(meta[1]) * 0.9213): int(int(meta[1]) * 0.9528),
+        roi = frame[int(int(meta[1]) * 0.9222): int(int(meta[1]) * 0.9528),
                     int(int(meta[0]) * 0.091): int(int(meta[0]) * 0.2172)]
         roi = cv2.resize(roi, (242, 34))
         # roi = cv2.equalizeHist(roi)
@@ -505,39 +521,40 @@ def get_health(frame,
             cv2.imshow('roi_s', roi_s)
             print(f'health:{health}, Shield:{shield}')
 
-    # if ammo display is not present and we do not take a reading
-    else:
-        health = 0
-        shield = 0
-
     return str(health + shield)
 
 
 def reduction_det_ms(frame_data):
     """ returns occurrences of reduction in ammo and health """
-    prev_a = None
-    prev_h = None
+
     det_list = []
 
     for frame, values in frame_data.items():
         # if this is the first loop, just compare first frame to its self
-        if prev_a is None:
+        try:
+            prev_a
+        except NameError:
             prev_a = values[1]
             prev_h = values[2]
 
         # compares current frame to previous frame,
         # looking for a reduction in ammo or reduction in health or if the hit marker was present
-        if int(prev_a) - int(values[1]) == 1 or \
-                8 < int(prev_h) - int(values[2]) < 120 and int(values[2]) != 0 or \
-                int(values[3]) == 1:
-            # if one of those triggers, append the msec value of the frame to a list to be returned,
-            # and load current frame info into prev variables to be compared next loop
-            det_list.append(float(values[0]))
+        if prev_a is None or prev_h is None \
+                or values[1] is None or values[2] is None or values[3] is None:
             prev_a = values[1]
             prev_h = values[2]
-        else:
-            prev_a = values[1]
-            prev_h = values[2]
+        else:        
+            if int(prev_a) - int(values[1]) == 1 or \
+                    8 < int(prev_h) - int(values[2]) < 120 and int(values[2]) != 0 or \
+                    int(values[3]) == 1:
+                # if one of those triggers, append the msec value of the frame to a list to be returned,
+                # and load current frame info into prev variables to be compared next loop
+                det_list.append(float(values[0]))
+                prev_a = values[1]
+                prev_h = values[2]
+            else:
+                prev_a = values[1]
+                prev_h = values[2]
 
     return det_list
 
