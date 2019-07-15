@@ -19,7 +19,7 @@ def get_meta_cv(vid):
 
 def get_meta(filename):
     """ Extract Meta info using ffprobe """
-    cmd = run(['ffprobe',
+    cmd = run([r'ffmpeg\bin\ffprobe',
                '-v',
                'quiet',
                '-select_streams',
@@ -50,7 +50,7 @@ def get_frame_data(filename,
     """ Extract time code for every frame using ffprobe """
     # print('start probe')
     logging.info(f'probe start')
-    cmd = run(['ffprobe',
+    cmd = run([r'ffmpeg\bin\ffprobe',
                '-v',
                'quiet',
                '-select_streams',
@@ -101,7 +101,7 @@ def cut_clip_ms(cut_list,
         extension = extension[-1].split('.')
         output = f'{output_path}{".".join(extension[0:-2])}_{start}_{end}.{extension[-1]}'
 
-        run(['ffmpeg',
+        run([r'ffmpeg\bin\ffmpeg',
              '-v',
              'error',
              '-ss',
@@ -137,7 +137,7 @@ def merge_clips(filename,
         f.write(f"file '{name}'\n")
     f.close()
 
-    run(['ffmpeg',
+    run([r'ffmpeg\bin\ffmpeg',
          '-v',
          'error',
          '-f',
