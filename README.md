@@ -1,5 +1,4 @@
 # vodparser-apex
 
-need FFMPEG installed and working correctly
-
-opencv, imutils, numpy
+delete clips when merge ticked
+multiple input clips
