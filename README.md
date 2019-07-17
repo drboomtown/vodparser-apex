@@ -1,8 +1,12 @@
 # vodparser-apex
 
+To do:
+
 delete clips when merge ticked
 
 multiple input clips
+
+
 
 Model  : da big code
 
