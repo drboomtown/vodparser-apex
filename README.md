@@ -6,6 +6,7 @@ delete clips when merge ticked
 
 multiple input clips
 
+identify and show final score
 
 
 Model  : da big code
